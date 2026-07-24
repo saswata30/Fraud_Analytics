@@ -33,13 +33,14 @@ The [`app/`](app/) folder is a **working React + FastAPI Databricks App** — a 
 
 Deploy it directly (see [`app/README.md`](app/README.md)) or regenerate it with Genie Code using notebook `06`.
 
-## Sample documents (`docs/`)
+## Documents (`docs/`)
 
-Upload these in the **Ask Genie** panel, then ask grounded questions:
+Upload the PDFs in the **Ask Genie** panel (they land in `raw/input/userdata`), then ask grounded questions:
 
-- [`docs/sample_fraud_event_report.md`](docs/sample_fraud_event_report.md) — a verbose SIU fraud investigation tied to the dataset.
-- [`docs/sample_eu_compliance_policy.md`](docs/sample_eu_compliance_policy.md) — an EU/GDPR compliance framework for fraud analytics.
-- [`docs/genie_sample_questions.md`](docs/genie_sample_questions.md) — 10+ ready-to-use Genie questions (data + document-grounded).
+- [`docs/fraud_event_report.pdf`](docs/fraud_event_report.pdf) — a realistic SIU fraud investigation report (letterhead, exhibits, sign-off), tied to the dataset fields.
+- [`docs/eu_compliance_policy.pdf`](docs/eu_compliance_policy.pdf) — an EU/GDPR + AI Act compliance framework for fraud analytics.
+- [`docs/genie_questions.docx`](docs/genie_questions.docx) — 20+ ready-to-use Genie questions (data + document-grounded).
+- [`docs/build_docs.py`](docs/build_docs.py) — regenerates the PDFs/DOCX (`pip install reportlab python-docx`).
 
 ## Quick start
 

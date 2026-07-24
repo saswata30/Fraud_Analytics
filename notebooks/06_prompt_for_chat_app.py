@@ -128,19 +128,34 @@
 # MAGIC GENIE_SPACE_ID, LLM_ENDPOINT. requirements.txt: fastapi, uvicorn, databricks-sdk,
 # MAGIC python-multipart, pypdf, pydantic. Build the frontend (vite build) and have FastAPI serve the
 # MAGIC dist/ as static files with a SPA fallback. Then give me the databricks CLI commands to sync
-# MAGIC and deploy the app, and grant the app service principal CAN QUERY on the warehouse and
-# MAGIC CAN RUN on the Genie space.
+# MAGIC and deploy the app, and grant the app service principal access.
 # MAGIC ```
 # MAGIC
-# MAGIC CLI reference (also in `app/README.md`):
+# MAGIC ### ⚠️ Two gotchas the deploy script (`app/deploy.py`) handles for you
+# MAGIC These were hit during the real end-to-end deployment — bake them into any regenerated app:
+# MAGIC
+# MAGIC 1. **The app runs as its own service principal, which has NO data access by default** →
+# MAGIC    every query returns `HTTP 500` with `INSUFFICIENT_PERMISSIONS ... USE CATALOG`. After
+# MAGIC    deploy, grant the app SP (from `databricks apps get <name>` → `service_principal_client_id`):
+# MAGIC    ```bash
+# MAGIC    SP=<service_principal_client_id>
+# MAGIC    databricks grants update catalog <catalog> --json '{"changes":[{"principal":"'$SP'","add":["USE_CATALOG"]}]}'
+# MAGIC    databricks grants update schema <catalog>.<schema> --json '{"changes":[{"principal":"'$SP'","add":["USE_SCHEMA","SELECT"]}]}'
+# MAGIC    databricks warehouses set-permissions <warehouse-id> --json '{"access_control_list":[{"service_principal_name":"'$SP'","permission_level":"CAN_USE"}]}'
+# MAGIC    ```
+# MAGIC    Also give the SP **CAN RUN** on the Genie space so the chat works.
+# MAGIC 2. **`databricks sync` honours `.gitignore`, which ignores `frontend/dist/`** → the app starts
+# MAGIC    with no frontend (blank page / 404). Ensure `frontend/dist` IS uploaded (a `.databricksignore`
+# MAGIC    that does not exclude `dist`, or sync from a copy where `dist` isn't gitignored).
+# MAGIC
+# MAGIC ### One-command deploy (recommended)
 # MAGIC ```bash
-# MAGIC # from app/
-# MAGIC (cd frontend && npm install && npm run build)
-# MAGIC databricks apps create fraud-analytics
-# MAGIC databricks sync . /Workspace/Users/<you>/fraud-analytics-app --profile <profile>
-# MAGIC databricks apps deploy fraud-analytics \
-# MAGIC   --source-code-path /Workspace/Users/<you>/fraud-analytics-app --profile <profile>
+# MAGIC cd app
+# MAGIC python deploy.py --profile <profile> --warehouse-id <id> --app-name fraud-analytics
 # MAGIC ```
+# MAGIC This resolves the catalog (with `allianz_workshop`→managed fallback), creates the Genie space
+# MAGIC with verbose instructions, builds+syncs+deploys, applies all grants, and prints the URL.
+# MAGIC See `app/DEPLOY.md` for the full explanation and the manual sequence.
 
 # COMMAND ----------
 

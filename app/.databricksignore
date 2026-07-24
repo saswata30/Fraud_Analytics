@@ -1,0 +1,9 @@
+# databricks sync uses THIS file (not .gitignore) when present.
+# We intentionally do NOT exclude frontend/dist — the deployed app serves it,
+# and there is no Node build step in the Apps runtime.
+frontend/node_modules/
+__pycache__/
+*.pyc
+.venv/
+.databricks/
+.genie_create.json

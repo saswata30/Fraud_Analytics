@@ -53,17 +53,16 @@ cd frontend && npm install && npm run dev
 
 ## Deploy to Databricks Apps
 
+**One command** (handles catalog fallback, Genie space, build, sync-with-dist, and all grants):
+
 ```bash
 cd app
-(cd frontend && npm install && npm run build)   # produces frontend/dist
-databricks apps create fraud-analytics --profile <profile>
-databricks sync . /Workspace/Users/<you>/fraud-analytics-app --profile <profile>
-databricks apps deploy fraud-analytics \
-  --source-code-path /Workspace/Users/<you>/fraud-analytics-app --profile <profile>
+python deploy.py --profile <profile> --warehouse-id <id> --app-name fraud-analytics
 ```
 
-Grant the app's service principal `CAN QUERY` on the SQL warehouse and `CAN RUN` on the Genie
-space, and `SELECT` on the Gold tables. Then open the app URL printed by the deploy command.
+See **[DEPLOY.md](DEPLOY.md)** for the full explanation, the manual sequence, and the two gotchas
+(app service-principal grants → otherwise HTTP 500; and `frontend/dist` must be synced → otherwise
+a blank page).
 
 ## Sample documents
 
