@@ -15,7 +15,7 @@ LLM = os.environ.get("LLM_ENDPOINT", "databricks-claude-sonnet-4-5")
 GENIE_SPACE_ID = os.environ.get("GENIE_SPACE_ID", "")
 
 # Candidate catalogs to probe (in order) when the configured one has no gold table.
-_CATALOG_CANDIDATES = [CATALOG, "allianz_workshop", "main", "hive_metastore"]
+_CATALOG_CANDIDATES = [CATALOG, "allianz_lab", "allianz_workshop", "main", "hive_metastore"]
 
 # Volume folder where user-uploaded documents are landed for analysis.
 VOLUME = os.environ.get("VOLUME", "raw")

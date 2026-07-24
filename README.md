@@ -13,14 +13,21 @@ Raw files (CSV/Parquet)  →  Bronze  →  Silver  →  Gold  →  Genie Space  
 
 ## Notebooks (run in order)
 
+**Setup runs on a SQL Warehouse — no cluster required.** The single `00_setup_sql` notebook
+creates the catalog, schema, synthetic data, and all bronze/silver/gold tables in pure SQL, so it
+works in locked-down lab workspaces that only provide a Serverless SQL Warehouse.
+
 | # | Notebook | What it does |
 |---|----------|--------------|
-| 01 | `notebooks/01_setup.py` | Creates catalog `allianz_workshop` (falls back to `default`), schema `fraud_analytics`, and volume `raw/input` (plus `raw/input/userdata` for app uploads). |
-| 02 | `notebooks/02_generate_data.py` | Generates 5,000+ synthetic insurance claims + 1,500 policyholders (with a learnable fraud signal) as CSV and Parquet. |
-| 03 | `notebooks/03_load_to_bronze.py` | Loads the raw files into Bronze Delta tables with audit columns. |
-| 04 | `notebooks/04_prompt_for_visual_data_prep.py` | Prompt playbook for **Visual Data Prep** to build Bronze→Silver→Gold with data-quality checks, published as a Lakeflow job. |
-| 05 | `notebooks/05_genie_space_setup.py` | Step-by-step: create, instruct, **benchmark**, and **monitor** a Genie Space over the Gold tables. |
+| 00 | `notebooks/00_setup_sql.sql` | **SQL-only setup (start here).** Creates catalog `allianz_lab`, schema `fraud_analytics`, generates 5,000 claims + 1,500 policyholders, and builds `gold_fraud_claims` / `gold_fraud_by_region` — all on a SQL Warehouse. |
+| 04 | `notebooks/04_prompt_for_visual_data_prep.py` | Prompt playbook for **Visual Data Prep** to build Bronze→Silver→Gold with data-quality checks (runs on serverless/SQL). |
+| 05 | `notebooks/05_genie_space_setup.py` | Step-by-step: create, instruct, **benchmark**, and **monitor** a Genie Space over the Gold tables (Genie uses the SQL Warehouse). |
 | 06 | `notebooks/06_prompt_for_chat_app.py` | Design brief + prompt playbook (for **Genie Code**) for the Databricks App. |
+
+> **Python path (needs an all-purpose cluster):** if your workspace has a cluster, the original
+> Python notebooks (`01_setup`, `02_generate_data`, `03_load_to_bronze` + shared `_config`) are
+> preserved in git history and do the same thing via Spark/pandas. Most workshop labs are
+> SQL-Warehouse-only, so `00_setup_sql` is the default path.
 
 ## The app
 
