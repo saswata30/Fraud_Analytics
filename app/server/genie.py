@@ -147,9 +147,8 @@ def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
     # Genie's UI shows the description as a lead-in, then the overview + key observations.
     # We surface Genie's OWN text verbatim (no re-summarising) so the app matches Genie exactly.
     description = "\n\n".join(_dedupe(description_parts)).strip()
-    answer = "\n\n".join(_dedupe(answer_parts)).strip()
-    if description and description not in answer:
-        answer = (description + "\n\n" + answer).strip() if answer else description
+    answer_body = "\n\n".join(_dedupe(answer_parts)).strip()
+    answer = _structure_answer(description, answer_body)
 
     chart = _infer_chart(columns, rows) if (has_viz or rows) else None
 
@@ -162,6 +161,46 @@ def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
         "chart": chart,
         "error": msg.error.error if msg.error else None,
     }
+
+
+def _structure_answer(description: str, body: str) -> str:
+    """Format Genie's own text into an Overview + Key observations layout (like the Genie UI),
+    WITHOUT rewriting any content. The description becomes a lead-in; the prose becomes the
+    Overview; bullet lines (and the trailing summary sentence) become Key observations.
+    """
+    if not body:
+        return description
+
+    lines = body.split("\n")
+    overview, bullets, trailing = [], [], []
+    for ln in lines:
+        s = ln.strip()
+        if not s:
+            continue
+        if re.match(r"^[-*•]\s+", s):
+            bullets.append(re.sub(r"^[-*•]\s+", "", s))
+        elif bullets:
+            # prose that appears AFTER the bullets = a concluding observation
+            trailing.append(s)
+        else:
+            overview.append(s)
+
+    # No bullets → nothing to restructure; return Genie's text as-is (with the lead-in).
+    if not bullets:
+        return (description + "\n\n" + body).strip() if description else body
+
+    parts = []
+    if description:
+        parts.append(description)
+    if overview:
+        ov = " ".join(overview)
+        # Drop a dangling "… include:" / "… are:" lead-in now that a header follows.
+        ov = re.sub(r"[\s,;:–-]*\b(include|includes|including|are|are as follows|as follows)\s*:?\s*$",
+                    ".", ov, flags=re.IGNORECASE).strip()
+        parts.append("**Overview**\n" + ov)
+    obs = ["**Key observations**"] + [f"- {b}" for b in bullets] + [f"- {t}" for t in trailing]
+    parts.append("\n".join(obs))
+    return "\n\n".join(parts).strip()
 
 
 def _infer_chart(columns: list, rows: list) -> dict | None:

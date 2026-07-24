@@ -185,6 +185,21 @@ env:
     # we don't commit build output). But the deployed app NEEDS dist (there is no Node build
     # step in the Apps runtime). Temporarily drop the dist exclusion from .gitignore for the
     # sync, then restore it, so the built frontend is uploaded but git stays clean.
+    # Prune any previously-deployed hashed bundles so a stale index-*.js/css can't linger
+    # alongside the new one (Vite emits content-hashed filenames, so sync only ADDS).
+    assets_dir = f"{src_path}/frontend/dist/assets"
+    local_assets = {p.name for p in (HERE / "frontend" / "dist" / "assets").glob("*")}
+    listing = sh("databricks", "workspace", "list", assets_dir, "--output", "json",
+                 "--profile", args.profile, check=False, capture=True).stdout
+    try:
+        for obj in json.loads(listing or "[]"):
+            name = obj.get("path", "").rsplit("/", 1)[-1]
+            if name and name not in local_assets:
+                sh("databricks", "workspace", "delete", f"{assets_dir}/{name}",
+                   "--profile", args.profile, check=False)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
     gitignore = HERE / ".gitignore"
     original = gitignore.read_text() if gitignore.exists() else None
     try:
