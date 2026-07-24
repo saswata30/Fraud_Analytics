@@ -17,20 +17,8 @@
 # MAGIC - You have a running **SQL Warehouse** (Serverless recommended).
 # MAGIC - You have `CAN USE` on the warehouse and `SELECT` on the tables.
 # MAGIC
-# MAGIC > **Which catalog?** The examples below say `allianz_workshop`, but earlier notebooks resolve the
-# MAGIC > catalog dynamically (it may be `allianz_workshop`, `main`, or `hive_metastore` depending on your
-# MAGIC > workspace). Run the cell below to print YOUR fully-qualified table names, and use those when you
-# MAGIC > add tables to the Genie Space.
-
-# COMMAND ----------
-
-# MAGIC %run ./_config
-
-# COMMAND ----------
-
-print("Add these two tables to your Genie Space:")
-print(f"  {FQ}.gold_fraud_claims")
-print(f"  {FQ}.gold_fraud_by_region")
+# MAGIC > **Catalog:** notebooks `01`–`03` create the tables in **`allianz_lab.fraud_analytics`**.
+# MAGIC > If you used a different catalog in `01_setup`, substitute it below.
 
 # COMMAND ----------
 
@@ -42,8 +30,8 @@ print(f"  {FQ}.gold_fraud_by_region")
 # MAGIC 4. **Description:** `Ask questions about insurance claims and fraud patterns for the Allianz workshop.`
 # MAGIC 5. **Default warehouse:** select your Serverless SQL Warehouse.
 # MAGIC 6. **Tables:** add
-# MAGIC    - `allianz_workshop.fraud_analytics.gold_fraud_claims`
-# MAGIC    - `allianz_workshop.fraud_analytics.gold_fraud_by_region`
+# MAGIC    - `allianz_lab.fraud_analytics.gold_fraud_claims`
+# MAGIC    - `allianz_lab.fraud_analytics.gold_fraud_by_region`
 # MAGIC 7. Click **Save**.
 
 # COMMAND ----------
