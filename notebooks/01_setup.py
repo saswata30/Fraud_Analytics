@@ -14,67 +14,35 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 1 · Configuration
-# MAGIC Change these values if you want different names. Everything downstream reads from these variables.
+# MAGIC ## Step 1 · Resolve catalog + schema (works in any workspace)
+# MAGIC We run the shared `_config` notebook. It tries to create a Unity Catalog
+# MAGIC (`allianz_workshop`), and if you lack `CREATE CATALOG` it reuses an existing writable
+# MAGIC catalog (`main`) or falls back to `hive_metastore` — so this runs cleanly in a Vocareum
+# MAGIC lab, FEVM, or a demo workspace without editing anything.
 
 # COMMAND ----------
 
-# Desired names — edit if needed
-PREFERRED_CATALOG = "allianz_workshop"
-FALLBACK_CATALOG  = "default"
-SCHEMA            = "fraud_analytics"
-VOLUME            = "raw"
-VOLUME_SUBDIR     = "input"
-
-print(f"Preferred catalog : {PREFERRED_CATALOG}")
-print(f"Fallback catalog  : {FALLBACK_CATALOG}")
-print(f"Schema            : {SCHEMA}")
-print(f"Volume            : {VOLUME}/{VOLUME_SUBDIR}")
+# MAGIC %run ./_config
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Step 2 · Create (or fall back to) a catalog
-# MAGIC We attempt to create `allianz_workshop`. If we lack the `CREATE CATALOG` privilege, we gracefully fall back to `default` so the workshop still works.
-
-# COMMAND ----------
-
-def resolve_catalog():
-    """Try to create the preferred catalog; fall back to default on failure."""
-    try:
-        spark.sql(f"CREATE CATALOG IF NOT EXISTS {PREFERRED_CATALOG}")
-        print(f"✅ Using catalog: {PREFERRED_CATALOG}")
-        return PREFERRED_CATALOG
-    except Exception as e:
-        print(f"⚠️  Could not create '{PREFERRED_CATALOG}': {e}")
-        print(f"➡️  Falling back to catalog: {FALLBACK_CATALOG}")
-        return FALLBACK_CATALOG
-
-CATALOG = resolve_catalog()
+# `_config` set: CATALOG, SCHEMA, FQ, VOLUME, INPUT_PATH, USERDATA_PATH and already
+# created + USE'd the schema. Confirm what we resolved to:
+print(f"✅ Catalog : {CATALOG}")
+print(f"✅ Schema  : {FQ}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 3 · Create the schema
-
-# COMMAND ----------
-
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
-spark.sql(f"USE CATALOG {CATALOG}")
-spark.sql(f"USE SCHEMA {SCHEMA}")
-print(f"✅ Schema ready: {CATALOG}.{SCHEMA}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Step 4 · Create the managed volume `raw` with an `input` folder
-# MAGIC The volume is where `02_generate_data` will land the raw CSV and Parquet files that `03_load_to_bronze` then ingests.
+# MAGIC ## Step 2 · Create the managed volume `raw` with an `input` folder
+# MAGIC The volume is where `02_generate_data` will land the raw CSV and Parquet files that
+# MAGIC `03_load_to_bronze` then ingests.
 
 # COMMAND ----------
 
 spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.{VOLUME}")
 
-volume_input_path = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/{VOLUME_SUBDIR}"
+volume_input_path = INPUT_PATH
 dbutils.fs.mkdirs(volume_input_path)
 print(f"✅ Volume input path ready: {volume_input_path}")
 

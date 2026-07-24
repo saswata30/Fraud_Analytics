@@ -17,18 +17,14 @@
 
 # MAGIC %md
 # MAGIC ## Step 1 · Configuration
+# MAGIC Reuse the catalog resolved by `01_setup` via the shared `_config` notebook.
 
 # COMMAND ----------
 
-CATALOG       = "allianz_workshop"   # or "default"
-SCHEMA        = "fraud_analytics"
-VOLUME        = "raw"
-VOLUME_SUBDIR = "input"
+# MAGIC %run ./_config
 
-INPUT_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/{VOLUME_SUBDIR}"
+# COMMAND ----------
 
-spark.sql(f"USE CATALOG {CATALOG}")
-spark.sql(f"USE SCHEMA {SCHEMA}")
 print(f"Reading from: {INPUT_PATH}")
 
 # COMMAND ----------

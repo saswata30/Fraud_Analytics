@@ -29,16 +29,14 @@
 
 # MAGIC %md
 # MAGIC ## Step 2 · Configuration
-# MAGIC Keep these in sync with `01_setup`. If `allianz_workshop` was not created, change `CATALOG` to `default`.
+# MAGIC We reuse the same catalog `01_setup` resolved by running the shared `_config` notebook —
+# MAGIC no need to hard-code or keep anything in sync. It sets `CATALOG`, `SCHEMA`, `INPUT_PATH`.
 
 # COMMAND ----------
 
-CATALOG       = "allianz_workshop"   # or "default" if catalog creation was not permitted
-SCHEMA        = "fraud_analytics"
-VOLUME        = "raw"
-VOLUME_SUBDIR = "input"
+# MAGIC %run ./_config
 
-INPUT_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/{VOLUME_SUBDIR}"
+# COMMAND ----------
 
 N_POLICYHOLDERS = 1_500
 N_CLAIMS        = 5_000
