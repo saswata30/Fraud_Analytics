@@ -51,15 +51,27 @@ databricks warehouses set-permissions <warehouse-id> --profile <p> \
 Also give the SP **CAN RUN** on the Genie space (Genie UI → Share, or the permissions API) so the
 chat works.
 
-## Gotcha 2 — no frontend shows up (blank page / 404)
+## Gotcha 2 — no frontend shows up (blank page / stale UI)
 
-`databricks sync` honours `.gitignore`. The repo's `app/.gitignore` ignores `frontend/dist/` (correct
-for git — we don't commit build output). But the **deployed** app needs `dist/` because there is no
-Node build step in the Apps runtime. `deploy.py` handles this; if you deploy by hand, make sure
-`frontend/dist` is uploaded (a `.databricksignore` that does **not** exclude `dist`, or a sync from a
-copy where `dist` isn't gitignored).
+`databricks sync` honours **`.gitignore`**, and the repo's `app/.gitignore` ignores `frontend/dist/`
+(correct for git — we don't commit build output). But the **deployed** app needs `dist/` because
+there is no Node build step in the Apps runtime. If `dist` isn't synced you get a blank page; if an
+*old* `dist` lingers you get a stale UI.
 
-Verify after sync:
+`deploy.py` handles this by temporarily removing the `frontend/dist` line from `.gitignore` for the
+duration of the sync, then restoring it. If you deploy **by hand**, do the same:
+
+```bash
+# from app/ — drop the dist exclusion just for the sync
+grep -v 'frontend/dist' .gitignore > .gitignore.tmp && mv .gitignore.tmp .gitignore
+databricks sync . /Workspace/Users/<you>/fraud-analytics-app --profile <p>
+git checkout .gitignore     # restore
+```
+
+> Note: a `.databricksignore` does **not** override `.gitignore` for `sync` — the CLI applies both,
+> so you must edit `.gitignore` itself (as above), not rely on `.databricksignore`.
+
+Verify after sync (and that only the newest hashed bundle remains):
 ```bash
 databricks workspace list /Workspace/Users/<you>/fraud-analytics-app/frontend/dist/assets --profile <p>
 ```

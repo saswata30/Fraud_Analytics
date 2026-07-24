@@ -145,8 +145,10 @@
 # MAGIC    ```
 # MAGIC    Also give the SP **CAN RUN** on the Genie space so the chat works.
 # MAGIC 2. **`databricks sync` honours `.gitignore`, which ignores `frontend/dist/`** → the app starts
-# MAGIC    with no frontend (blank page / 404). Ensure `frontend/dist` IS uploaded (a `.databricksignore`
-# MAGIC    that does not exclude `dist`, or sync from a copy where `dist` isn't gitignored).
+# MAGIC    with no frontend (blank page) or a stale UI. `deploy.py` temporarily strips the `frontend/dist`
+# MAGIC    line from `.gitignore` for the sync, then restores it. Doing it by hand:
+# MAGIC    `grep -v 'frontend/dist' .gitignore > .gitignore.tmp && mv .gitignore.tmp .gitignore`, sync,
+# MAGIC    then `git checkout .gitignore`. A `.databricksignore` does NOT override `.gitignore` for sync.
 # MAGIC
 # MAGIC ### One-command deploy (recommended)
 # MAGIC ```bash

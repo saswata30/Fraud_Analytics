@@ -1,6 +1,6 @@
-# databricks sync uses THIS file (not .gitignore) when present.
-# We intentionally do NOT exclude frontend/dist — the deployed app serves it,
-# and there is no Node build step in the Apps runtime.
+# NOTE: `databricks sync` applies BOTH .gitignore and this file — this does NOT
+# override .gitignore. Because .gitignore excludes frontend/dist/, deploy.py
+# temporarily strips that line during sync so the built frontend uploads.
 frontend/node_modules/
 __pycache__/
 *.pyc

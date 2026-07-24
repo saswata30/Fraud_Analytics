@@ -181,9 +181,20 @@ env:
     print("[4/6] Build frontend + sync (INCLUDING dist) + deploy")
     sh("npm", "--prefix", str(HERE / "frontend"), "install")
     sh("npm", "--prefix", str(HERE / "frontend"), "run", "build")
-    # NOTE: databricks sync honours .gitignore. Ensure frontend/dist is NOT gitignored
-    # for the synced copy, or the app will start with no frontend (blank / 404).
-    sh("databricks", "sync", str(HERE), src_path, "--profile", args.profile, check=False)
+    # `databricks sync` honours .gitignore, which lists frontend/dist/ (correct for git —
+    # we don't commit build output). But the deployed app NEEDS dist (there is no Node build
+    # step in the Apps runtime). Temporarily drop the dist exclusion from .gitignore for the
+    # sync, then restore it, so the built frontend is uploaded but git stays clean.
+    gitignore = HERE / ".gitignore"
+    original = gitignore.read_text() if gitignore.exists() else None
+    try:
+        if original is not None:
+            kept = [ln for ln in original.splitlines() if "frontend/dist" not in ln]
+            gitignore.write_text("\n".join(kept) + "\n")
+        sh("databricks", "sync", str(HERE), src_path, "--profile", args.profile, check=False)
+    finally:
+        if original is not None:
+            gitignore.write_text(original)
     sh("databricks", "apps", "deploy", args.app_name,
        "--source-code-path", src_path, "--profile", args.profile)
 
