@@ -1,133 +1,161 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 06 · Prompt Playbook — Build a "Chat with your Data" App
+# MAGIC # 06 · Prompt Playbook — "Chat with your Data" Fraud Analytics App
 # MAGIC
-# MAGIC This notebook is a set of **prompts you paste into Databricks Assistant / Genie Code** to generate a
-# MAGIC **Databricks App** where a user can:
-# MAGIC 1. **Chat with the fraud data** via the Genie Conversation API, and
-# MAGIC 2. **Upload a document** (PDF/text) and ask questions grounded in that document + the Genie space.
+# MAGIC This notebook is the **prompt playbook + design brief** you paste into **Genie Code** (the
+# MAGIC Databricks coding assistant) to generate a polished **Databricks App** where a user can:
+# MAGIC 1. See a **fraud analytics dashboard** (KPIs, fraud-over-time, fraud by region/policy, risk-score distribution),
+# MAGIC 2. **Chat with the fraud data** in natural language via the Genie Conversation API, and
+# MAGIC 3. **Upload a document** (PDF / TXT / CSV / MD) — landed in **`raw/input/userdata`** — and ask questions grounded in it.
 # MAGIC
-# MAGIC > The user runs these prompts through **Genie Code** (the coding assistant). This notebook contains the
-# MAGIC > prompts and the scaffolding instructions — not a finished app. Each prompt builds one part of the app.
+# MAGIC ### A working reference implementation already ships in this repo
+# MAGIC The `app/` folder contains a complete **React + FastAPI** app you can deploy as-is (see the repo
+# MAGIC `README.md` and `app/README.md`). Use the prompts below either to **regenerate it with Genie Code**
+# MAGIC or to understand and extend it. The design deliberately matches a clean, light,
+# MAGIC enterprise "insights" look (navy left rail, white content, blue accent, KPI tiles, SVG charts).
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Design brief (paste this first so Genie Code matches the look)
+# MAGIC
+# MAGIC ```
+# MAGIC Build a Databricks App that looks like a clean, modern enterprise "insights" dashboard.
+# MAGIC Visual style:
+# MAGIC - Light theme: app background #eef1f6, white cards, 1px #e4e9f1 borders, soft shadows, 12px radius.
+# MAGIC - A dark navy vertical nav rail (#14243d) on the left with icon+label items.
+# MAGIC - A white top bar: bold brand wordmark, an app title, a search box, and an
+# MAGIC   "Open in Unity Catalog" button in blue (#2f6df6).
+# MAGIC - Primary accent blue #2f6df6; risk/fraud red #e2483b; warning amber #e8833a; Inter font.
+# MAGIC - KPI tiles with a colored left border and an icon chip.
+# MAGIC - All charts are lightweight inline SVG (no chart library): a line/area chart, horizontal
+# MAGIC   bar charts, a grouped column chart, and a donut.
+# MAGIC Two screens in the left rail: "Overview" (the dashboard) and "Ask Genie" (the chat).
+# MAGIC Stack: React + Vite + TypeScript frontend, FastAPI (Python) backend, served as one app.
+# MAGIC ```
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Prerequisites
-# MAGIC - Genie Space from notebook `05` exists — copy its **Space ID** from the Genie Space URL
-# MAGIC   (`.../genie/rooms/<SPACE_ID>`).
-# MAGIC - A SQL Warehouse ID (Serverless).
-# MAGIC - Permission to create **Databricks Apps** (`Apps` in the left sidebar).
+# MAGIC - Gold tables from notebook `04` exist: `gold_fraud_claims`, `gold_fraud_by_region`.
+# MAGIC - Genie Space from notebook `05` exists — copy its **Space ID** from the URL (`.../genie/rooms/<SPACE_ID>`).
+# MAGIC - A **Serverless SQL Warehouse ID**.
+# MAGIC - Permission to create **Databricks Apps**.
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Prompt 1 · Scaffold the app
-# MAGIC Paste into Genie Code:
+# MAGIC ## Prompt 1 · Backend — dashboard data from the Gold tables
 # MAGIC
 # MAGIC ```
-# MAGIC Create a Databricks App using Python and Streamlit called "fraud-genie-chat".
-# MAGIC It should have:
-# MAGIC - app.yaml with command to run streamlit, and env vars GENIE_SPACE_ID and DATABRICKS_WAREHOUSE_ID.
-# MAGIC - requirements.txt with streamlit, databricks-sdk, pypdf.
-# MAGIC - app.py with a chat UI (st.chat_input / st.chat_message) and a sidebar file uploader.
-# MAGIC Use the Databricks SDK for authentication (WorkspaceClient picks up the app service principal).
-# MAGIC ```
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Prompt 2 · Wire up the Genie Conversation API
-# MAGIC
-# MAGIC ```
-# MAGIC In app.py, add a function ask_genie(question, conversation_id=None) that calls the Genie
-# MAGIC Conversation API via the Databricks SDK (w.genie). Start a conversation on the first message
-# MAGIC with start_conversation_and_wait, and continue it with create_message_and_wait using the stored
-# MAGIC conversation_id. Return the message text, any generated SQL, and the result table (query_result).
-# MAGIC Render the SQL in an expander and the result as a dataframe in the chat message.
-# MAGIC ```
-# MAGIC
-# MAGIC Reference SDK shape (for validation):
-# MAGIC ```python
-# MAGIC from databricks.sdk import WorkspaceClient
-# MAGIC w = WorkspaceClient()
-# MAGIC conv = w.genie.start_conversation_and_wait(space_id=GENIE_SPACE_ID, content=question)
-# MAGIC # follow-ups:
-# MAGIC msg = w.genie.create_message_and_wait(space_id=GENIE_SPACE_ID,
-# MAGIC                                        conversation_id=conv.conversation_id,
-# MAGIC                                        content=question)
+# MAGIC Create a FastAPI backend that queries the Gold tables via the Databricks SDK statement
+# MAGIC execution API on a serverless SQL warehouse (warehouse id from env WAREHOUSE_ID). Read
+# MAGIC CATALOG and SCHEMA from env (default allianz_workshop / fraud_analytics). Endpoints:
+# MAGIC - GET /api/dashboard  -> KPIs (total_claims, fraud_claims, fraud_rate, fraud_payout,
+# MAGIC   total_payout, high_risk_claims where fraud_risk_score>=3, avg_claim), a monthly fraud
+# MAGIC   trend from claim_month, fraud rate by region, fraud rate by policy_type, and a
+# MAGIC   fraud_risk_score distribution (0-4) split into fraud vs legit.
+# MAGIC - GET /api/high-risk?limit=25 -> highest fraud_risk_score claims with amount, region, channel.
+# MAGIC - GET /api/uc-link?object=gold_fraud_claims -> a deep link into Unity Catalog.
+# MAGIC - GET /api/meta -> catalog, schema, llm, stack.
+# MAGIC Authenticate with WorkspaceClient() in-app (service principal) and a CLI profile locally.
 # MAGIC ```
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Prompt 3 · Add document upload + Q&A
+# MAGIC ## Prompt 2 · Backend — Genie chat + document upload to `raw/input/userdata`
 # MAGIC
 # MAGIC ```
-# MAGIC Add a sidebar file_uploader accepting PDF and TXT. When a file is uploaded:
-# MAGIC - Extract its text with pypdf (or read text directly for .txt).
-# MAGIC - Store the text in st.session_state["doc_text"].
-# MAGIC When the user asks a question and a document is loaded, prepend a system-style preamble to the
-# MAGIC Genie question that includes the relevant document text as context, e.g.:
-# MAGIC "Using this uploaded document as additional context:\n<doc_text>\n\nAnswer: <user question>".
-# MAGIC If no document is loaded, send the question to Genie directly.
-# MAGIC Truncate document text to a safe token budget (e.g. first 6000 characters) and note the truncation.
+# MAGIC Add two endpoints:
+# MAGIC - POST /api/chat  { question, conversation_id?, doc_context? } -> call the Genie
+# MAGIC   Conversation API (w.genie). Start a conversation with start_conversation_and_wait on the
+# MAGIC   first message; continue with create_message_and_wait using the returned conversation_id.
+# MAGIC   Read the response attachments: text -> answer, query.query -> generated SQL, and fetch the
+# MAGIC   result rows with get_message_query_result (statement_response manifest + result). If
+# MAGIC   doc_context is provided, prepend it as additional context (truncate to ~6000 chars).
+# MAGIC   Return { conversation_id, answer, sql, columns, rows }.
+# MAGIC - POST /api/upload  (multipart file) -> IMPORTANT: land the raw bytes in the volume folder
+# MAGIC   /Volumes/{CATALOG}/{SCHEMA}/raw/input/userdata using w.files.create_directory + w.files.upload
+# MAGIC   (overwrite=True). Then extract text (pypdf for PDF, utf-8 decode otherwise) and return
+# MAGIC   { filename, volume_path, chars, preview, text }. Sanitise the filename.
+# MAGIC The upload path MUST be raw/input/userdata (not raw/input).
 # MAGIC ```
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Prompt 4 · Optionally ground answers with a Foundation Model
+# MAGIC ## Prompt 3 · Frontend — the dashboard screen
 # MAGIC
 # MAGIC ```
-# MAGIC Add a toggle "Blend document with LLM". When on, after Genie returns data, call the Foundation Model
-# MAGIC API (databricks-meta-llama or claude via serving endpoint) with the Genie result + the document text
-# MAGIC to produce a natural-language summary answer. Use w.serving_endpoints.query. Show both the raw Genie
-# MAGIC table and the LLM summary.
+# MAGIC Build a React "Overview" page using the design brief:
+# MAGIC - A row of 4 KPI tiles: Fraud Rate (red), Flagged Payout (amber), High-Risk Claims (blue),
+# MAGIC   Avg Claim (blue), each with an icon and a sub-label.
+# MAGIC - A 2-column row: an area/line chart of fraud rate over time (red line), and a donut of
+# MAGIC   fraud vs legitimate with a legend and a big fraud-rate figure.
+# MAGIC - A 3-column row: horizontal bar chart of fraud rate by region, horizontal bar chart of
+# MAGIC   fraud rate by policy type, and a grouped column chart of the fraud_risk_score distribution
+# MAGIC   (fraud in red, legit in grey).
+# MAGIC - A "Highest-Risk Claims" table with a colored risk-score pill (grey 0-1, amber 2, red 3-4)
+# MAGIC   and a Yes/No fraud column. Format money as GBP (£) and rates as percentages.
+# MAGIC Charts are inline SVG components (no chart library).
 # MAGIC ```
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Prompt 5 · Deploy the app
+# MAGIC ## Prompt 4 · Frontend — the "Ask Genie" chat screen with document upload
 # MAGIC
 # MAGIC ```
-# MAGIC Deploy the fraud-genie-chat app to Databricks Apps. Set the app resources so the service principal
-# MAGIC has CAN QUERY on the SQL warehouse and CAN RUN on the Genie space. Provide the databricks apps deploy
-# MAGIC command and the app.yaml env block. After deploy, print the app URL.
+# MAGIC Build a React "Ask Genie" chat page:
+# MAGIC - A hero state with suggested questions (fraud rate, fraud by region, payout by policy type).
+# MAGIC - Chat bubbles: user (blue, right) and Genie (white card, left). For a Genie answer, show the
+# MAGIC   text, a collapsible "Generated SQL" block, and the result rows as a table.
+# MAGIC - An input bar with a paperclip upload button and a send button.
+# MAGIC - When a file is uploaded, POST it to /api/upload, show a chip "<filename> -> raw/input/userdata",
+# MAGIC   and pass the returned document text as doc_context on subsequent /api/chat calls.
+# MAGIC - Accept .pdf, .txt, .csv, .json, .md. Keep a conversation_id across turns.
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Prompt 5 · Package & deploy
+# MAGIC
+# MAGIC ```
+# MAGIC Add an app.yaml that runs uvicorn on port 8000 and sets env CATALOG, SCHEMA, WAREHOUSE_ID,
+# MAGIC GENIE_SPACE_ID, LLM_ENDPOINT. requirements.txt: fastapi, uvicorn, databricks-sdk,
+# MAGIC python-multipart, pypdf, pydantic. Build the frontend (vite build) and have FastAPI serve the
+# MAGIC dist/ as static files with a SPA fallback. Then give me the databricks CLI commands to sync
+# MAGIC and deploy the app, and grant the app service principal CAN QUERY on the warehouse and
+# MAGIC CAN RUN on the Genie space.
 # MAGIC ```
 # MAGIC
-# MAGIC CLI reference:
+# MAGIC CLI reference (also in `app/README.md`):
 # MAGIC ```bash
-# MAGIC databricks apps create fraud-genie-chat
-# MAGIC databricks sync ./fraud-genie-chat /Workspace/Users/<you>/fraud-genie-chat
-# MAGIC databricks apps deploy fraud-genie-chat \
-# MAGIC   --source-code-path /Workspace/Users/<you>/fraud-genie-chat
+# MAGIC # from app/
+# MAGIC (cd frontend && npm install && npm run build)
+# MAGIC databricks apps create fraud-analytics
+# MAGIC databricks sync . /Workspace/Users/<you>/fraud-analytics-app --profile <profile>
+# MAGIC databricks apps deploy fraud-analytics \
+# MAGIC   --source-code-path /Workspace/Users/<you>/fraud-analytics-app --profile <profile>
 # MAGIC ```
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Reference · minimal `app.yaml`
-# MAGIC ```yaml
-# MAGIC command: ["streamlit", "run", "app.py"]
-# MAGIC env:
-# MAGIC   - name: GENIE_SPACE_ID
-# MAGIC     value: "<your-genie-space-id>"
-# MAGIC   - name: DATABRICKS_WAREHOUSE_ID
-# MAGIC     value: "<your-warehouse-id>"
-# MAGIC ```
+# MAGIC ## Try it with the sample documents
+# MAGIC The repo ships two documents under `docs/` you can upload in the "Ask Genie" panel:
+# MAGIC - **`sample_fraud_event_report.md`** — a verbose SIU fraud investigation tied to the dataset fields.
+# MAGIC - **`sample_eu_compliance_policy.md`** — an EU/GDPR compliance framework for fraud analytics.
 # MAGIC
-# MAGIC ## Reference · `requirements.txt`
-# MAGIC ```
-# MAGIC streamlit>=1.35
-# MAGIC databricks-sdk>=0.30
-# MAGIC pypdf>=4.2
-# MAGIC ```
+# MAGIC Then ask questions from **`docs/genie_sample_questions.md`** (10+ questions), including the
+# MAGIC document-grounded ones at the end. Uploaded files land in **`raw/input/userdata`**.
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ### ✅ Workshop complete
-# MAGIC You now have the full path: **Setup → Data → Bronze → Silver/Gold (Visual Data Prep) → Genie → App.**
-# MAGIC See the repo `README.md` for the run order and add your own screenshots.
+# MAGIC Full path: **Setup → Data → Bronze → Silver/Gold (Visual Data Prep) → Genie → App.**
+# MAGIC The `app/` folder is a working reference you can deploy directly.

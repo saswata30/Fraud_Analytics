@@ -78,6 +78,12 @@ volume_input_path = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}/{VOLUME_SUBDIR}"
 dbutils.fs.mkdirs(volume_input_path)
 print(f"✅ Volume input path ready: {volume_input_path}")
 
+# A dedicated sub-folder for documents that end users upload via the app.
+# The "Ask Genie" app lands uploaded files here (raw/input/userdata).
+userdata_path = f"{volume_input_path}/userdata"
+dbutils.fs.mkdirs(userdata_path)
+print(f"✅ User-upload path ready:  {userdata_path}")
+
 # COMMAND ----------
 
 # MAGIC %md
@@ -94,6 +100,7 @@ config = {
     "schema": SCHEMA,
     "volume": VOLUME,
     "input_path": volume_input_path,
+    "userdata_path": userdata_path,
 }
 print("Copy these into the other notebooks if you changed defaults:\n")
 for k, v in config.items():

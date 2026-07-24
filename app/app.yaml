@@ -1,0 +1,21 @@
+command:
+  - "python"
+  - "-m"
+  - "uvicorn"
+  - "app:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+env:
+  - name: CATALOG
+    value: "allianz_workshop"
+  - name: SCHEMA
+    value: "fraud_analytics"
+  - name: WAREHOUSE_ID
+    value: ""          # set to your Serverless SQL warehouse id on deploy
+  - name: GENIE_SPACE_ID
+    value: ""          # set to your Genie space id (from notebook 05)
+  - name: LLM_ENDPOINT
+    value: "databricks-claude-sonnet-4-5"

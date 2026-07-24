@@ -15,12 +15,31 @@ Raw files (CSV/Parquet)  →  Bronze  →  Silver  →  Gold  →  Genie Space  
 
 | # | Notebook | What it does |
 |---|----------|--------------|
-| 01 | `notebooks/01_setup.py` | Creates catalog `allianz_workshop` (falls back to `default`), schema `fraud_analytics`, and volume `raw/input`. |
+| 01 | `notebooks/01_setup.py` | Creates catalog `allianz_workshop` (falls back to `default`), schema `fraud_analytics`, and volume `raw/input` (plus `raw/input/userdata` for app uploads). |
 | 02 | `notebooks/02_generate_data.py` | Generates 5,000+ synthetic insurance claims + 1,500 policyholders (with a learnable fraud signal) as CSV and Parquet. |
 | 03 | `notebooks/03_load_to_bronze.py` | Loads the raw files into Bronze Delta tables with audit columns. |
 | 04 | `notebooks/04_prompt_for_visual_data_prep.py` | Prompt playbook for **Visual Data Prep** to build Bronze→Silver→Gold with data-quality checks, published as a Lakeflow job. |
 | 05 | `notebooks/05_genie_space_setup.py` | Step-by-step: create, instruct, **benchmark**, and **monitor** a Genie Space over the Gold tables. |
-| 06 | `notebooks/06_prompt_for_chat_app.py` | Prompt playbook (for **Genie Code**) to build a Databricks App: chat with the data + upload a document and ask questions. |
+| 06 | `notebooks/06_prompt_for_chat_app.py` | Design brief + prompt playbook (for **Genie Code**) for the Databricks App. |
+
+## The app
+
+The [`app/`](app/) folder is a **working React + FastAPI Databricks App** — a clean, light
+"insights" dashboard (navy rail, blue accent, SVG charts) with two screens:
+
+- **Overview** — fraud-rate KPIs, fraud-over-time, fraud by region/policy, risk-score distribution, high-risk claims table.
+- **Ask Genie** — natural-language chat over the fraud data via the Genie Conversation API, plus
+  document upload. **Uploaded files land in `raw/input/userdata`.**
+
+Deploy it directly (see [`app/README.md`](app/README.md)) or regenerate it with Genie Code using notebook `06`.
+
+## Sample documents (`docs/`)
+
+Upload these in the **Ask Genie** panel, then ask grounded questions:
+
+- [`docs/sample_fraud_event_report.md`](docs/sample_fraud_event_report.md) — a verbose SIU fraud investigation tied to the dataset.
+- [`docs/sample_eu_compliance_policy.md`](docs/sample_eu_compliance_policy.md) — an EU/GDPR compliance framework for fraud analytics.
+- [`docs/genie_sample_questions.md`](docs/genie_sample_questions.md) — 10+ ready-to-use Genie questions (data + document-grounded).
 
 ## Quick start
 
