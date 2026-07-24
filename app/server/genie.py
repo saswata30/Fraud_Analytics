@@ -10,7 +10,7 @@ from server.config import (
     WAREHOUSE_ID,
     get_workspace_client,
 )
-from server.db import llm, sql
+from server.db import sql
 
 
 def _slug(name: str) -> str:
@@ -87,19 +87,23 @@ def ask(question: str, conversation_id: str | None = None, doc_context: str = ""
 
 
 def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
-    text_parts: list[str] = []
+    description_parts: list[str] = []   # Genie's "You want to see…" preamble
+    answer_parts: list[str] = []        # Genie's overview + key observations
     generated_sql = None
     columns: list[str] = []
     rows: list[list] = []
+    has_viz = False
 
     for att in (msg.attachments or []):
         if att.text and att.text.content:
-            text_parts.append(att.text.content)
+            answer_parts.append(att.text.content)
+        if getattr(att, "viz", None):
+            has_viz = True
         if att.query:
-            # Genie's natural-language description of the result (the "overview /
-            # key observations" narrative shown in the Genie UI) — keep it.
+            # Genie's natural-language description of the result (shown above the
+            # answer in the Genie UI) — keep it as a lead-in.
             if att.query.description:
-                text_parts.append(att.query.description)
+                description_parts.append(att.query.description)
             if att.query.query:
                 generated_sql = att.query.query
                 # Fetch the result rows. Genie often splits the response into several
@@ -131,92 +135,98 @@ def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
                     columns = [c.name for c in sr.manifest.schema.columns]
                     rows = sr.result.data_array or []
 
-    # De-duplicate identical attachment texts while preserving order.
-    seen = set()
-    unique_parts = []
-    for p in text_parts:
-        p = p.strip()
-        if p and p not in seen:
-            seen.add(p)
-            unique_parts.append(p)
-    answer = "\n\n".join(unique_parts).strip()
+    def _dedupe(parts):
+        seen, out = set(), []
+        for p in parts:
+            p = (p or "").strip()
+            if p and p not in seen:
+                seen.add(p)
+                out.append(p)
+        return out
 
-    # Expand Genie's own answer into a fuller, demo-grade explanation grounded in the
-    # data. This PRESERVES everything Genie said (overview + observations) and adds
-    # analysis — it never shortens. SQL is intentionally NOT surfaced to the user.
-    verbose = _elaborate(question, answer, columns, rows, doc_context)
+    # Genie's UI shows the description as a lead-in, then the overview + key observations.
+    # We surface Genie's OWN text verbatim (no re-summarising) so the app matches Genie exactly.
+    description = "\n\n".join(_dedupe(description_parts)).strip()
+    answer = "\n\n".join(_dedupe(answer_parts)).strip()
+    if description and description not in answer:
+        answer = (description + "\n\n" + answer).strip() if answer else description
+
+    chart = _infer_chart(columns, rows) if (has_viz or rows) else None
 
     return {
         "conversation_id": msg.conversation_id,
         "message_id": msg.message_id,
-        "answer": verbose or answer or "I couldn't produce an answer for that.",
+        "answer": answer or "I couldn't produce an answer for that.",
         "columns": columns,
-        "rows": rows[:200],
+        "rows": rows[:500],
+        "chart": chart,
         "error": msg.error.error if msg.error else None,
     }
 
 
-def _elaborate(question: str, answer: str, columns: list, rows: list, doc_context: str) -> str:
-    """Expand Genie's own answer + full result set into a complete, detailed explanation.
+def _infer_chart(columns: list, rows: list) -> dict | None:
+    """Infer a Genie-like chart spec from the result shape.
 
-    Key rule: PRESERVE everything Genie said (its overview and key observations) and add
-    to it — never summarise or drop content. Falls back to Genie's raw answer on any error
-    or if the model returns something shorter than Genie already gave us.
+    - A date/time/month/year column on x → line chart (trend), every numeric column a series.
+    - Otherwise a categorical first column + numeric column(s) → bar chart.
+    Returns {type, x, series:[...], data:[{x, <series>: n}, ...]} or None.
     """
-    if not question or not answer and not rows:
-        return answer
+    if not columns or not rows or len(rows) < 2:
+        return None
 
-    # Feed the full result set (capped generously) so the model can describe the whole trend,
-    # not just the first few rows.
-    preview = ""
-    if columns and rows:
-        head = rows[:200]
-        preview = " | ".join(columns) + "\n" + "\n".join(
-            " | ".join("" if c is None else str(c) for c in r) for r in head
-        )
-        if len(rows) > 200:
-            preview += f"\n… ({len(rows) - 200} more rows)"
+    lc = [c.lower() for c in columns]
 
-    doc_note = ""
-    if doc_context:
-        doc_note = (
-            "\n\nThe user also uploaded a document; relevant excerpt:\n\"\"\"\n"
-            + doc_context[:3000] + "\n\"\"\"\n"
-            "Where the question relates to the document, connect its content to the data."
-        )
+    def is_num(v):
+        if v is None:
+            return False
+        try:
+            float(v)
+            return True
+        except (TypeError, ValueError):
+            return False
 
-    system = (
-        "You are the Fraud Chatbot for an insurance company, speaking to fraud analysts and claims "
-        "managers in a customer demo. You are given the analytics engine's own answer and its full "
-        "result set. Produce a COMPLETE, detailed, well-structured response in clear British English.\n\n"
-        "CRITICAL RULES:\n"
-        "- PRESERVE everything in the analytics engine's answer. Reproduce its overview and every key "
-        "observation IN FULL — never summarise, shorten, truncate, or omit any point it made. If it "
-        "gave an 'Overview' and 'Key observations', keep those sections and their content.\n"
-        "- You may EXPAND: add more detail, describe the full trend across all periods/rows, note "
-        "peaks, troughs, ranges and comparisons, and finish with a brief '**What this suggests**' "
-        "takeaway for fraud investigation. Add, never remove.\n"
-        "- Structure with a short '**Overview**' paragraph and a '**Key observations**' bulleted list "
-        "(one bullet per notable point), matching the engine's structure where present.\n"
-        "- Describe the WHOLE result set, not just the first rows. For a monthly trend, walk through the "
-        "movement over time and call out the highest and lowest months.\n"
-        "- Money is GBP: format with £ and thousands separators (e.g. £34,100; £K/£M for large sums). "
-        "Rates as percentages to one decimal place.\n"
-        "- Use ONLY the numbers provided; never invent figures or columns. Do NOT mention SQL, queries, "
-        "tables or column names as technical artefacts — speak in business terms."
-    )
-    user = (
-        f"User question:\n{question}\n\n"
-        f"Analytics engine's answer (preserve and expand — do not shorten):\n"
-        f"{answer or '(no text answer; describe the data below in full)'}\n\n"
-        f"Full result set:\n{preview or '(no tabular data returned)'}"
-        f"{doc_note}"
-    )
-    try:
-        out = llm(system, user, temperature=0.3, max_tokens=2500).strip()
-        # Guard: never return something shorter than Genie's own answer.
-        if out and len(out) >= len(answer):
-            return out
-        return answer
-    except Exception:
-        return answer
+    # numeric columns = those numeric in the first non-empty row
+    sample = rows[0]
+    numeric_idx = [i for i, v in enumerate(sample) if is_num(v)]
+    if not numeric_idx:
+        return None
+
+    # find an x (time or category) column that is NOT one of the numeric series
+    time_kw = ("month", "date", "year", "day", "week", "quarter", "period", "time", "_ts")
+    x_idx = next((i for i, name in enumerate(lc)
+                  if any(k in name for k in time_kw) and i not in numeric_idx), None)
+    ctype = "line"
+    if x_idx is None:
+        # first non-numeric column as category → bar
+        x_idx = next((i for i in range(len(columns)) if i not in numeric_idx), None)
+        ctype = "bar"
+    if x_idx is None:
+        return None
+
+    series_idx = [i for i in numeric_idx if i != x_idx]
+    if not series_idx:
+        return None
+
+    def fmt_x(v):
+        s = "" if v is None else str(v)
+        # trim ISO timestamps to yyyy-MM
+        if len(s) >= 7 and s[4] == "-" and s[:4].isdigit():
+            return s[:7]
+        return s
+
+    data = []
+    for r in rows[:500]:
+        point = {"x": fmt_x(r[x_idx])}
+        for i in series_idx:
+            try:
+                point[columns[i]] = float(r[i]) if r[i] is not None else None
+            except (TypeError, ValueError):
+                point[columns[i]] = None
+        data.append(point)
+
+    return {
+        "type": ctype,
+        "x": columns[x_idx],
+        "series": [columns[i] for i in series_idx],
+        "data": data,
+    }

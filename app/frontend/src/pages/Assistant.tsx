@@ -1,13 +1,44 @@
 import { useRef, useState } from "react";
 import { FileText, Paperclip, Send, Sparkles, X } from "lucide-react";
-import { api, ChatResponse } from "../lib/api";
+import { api, ChartSpec, ChatResponse } from "../lib/api";
+import { GenieChart } from "../components/charts";
 
 interface Turn {
   role: "user" | "genie";
   text: string;
   columns?: string[];
   rows?: any[][];
+  chart?: ChartSpec | null;
   error?: string | null;
+}
+
+// Minimal, safe markdown → React: paragraphs, **bold**, and "- " bullet lists.
+function Markdown({ text }: { text: string }) {
+  const bold = (s: string) =>
+    s.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
+      p.startsWith("**") && p.endsWith("**") ? <strong key={i}>{p.slice(2, -2)}</strong> : <span key={i}>{p}</span>
+    );
+  const blocks = text.split(/\n{2,}/);
+  return (
+    <>
+      {blocks.map((block, bi) => {
+        const lines = block.split("\n");
+        const isList = lines.every((l) => /^\s*[-*]\s+/.test(l) || l.trim() === "");
+        if (isList) {
+          return (
+            <ul className="md-list" key={bi}>
+              {lines.filter((l) => l.trim()).map((l, li) => (
+                <li key={li}>{bold(l.replace(/^\s*[-*]\s+/, ""))}</li>
+              ))}
+            </ul>
+          );
+        }
+        return <p className="md-p" key={bi}>{lines.map((l, li) => (
+          <span key={li}>{bold(l)}{li < lines.length - 1 ? <br /> : null}</span>
+        ))}</p>;
+      })}
+    </>
+  );
 }
 
 const SUGGESTIONS = [
@@ -38,7 +69,7 @@ export default function Assistant() {
       });
       if (r.conversation_id) setConvId(r.conversation_id);
       setTurns((t) => [...t, {
-        role: "genie", text: r.answer, columns: r.columns, rows: r.rows, error: r.error,
+        role: "genie", text: r.answer, columns: r.columns, rows: r.rows, chart: r.chart, error: r.error,
       }]);
     } catch (e) {
       setTurns((t) => [...t, { role: "genie", text: "", error: String(e) }]);
@@ -85,18 +116,25 @@ export default function Assistant() {
                   <div className="bubble-err">{t.error}</div>
                 ) : (
                   <>
-                    {t.text && <div className="bubble-text">{t.text}</div>}
+                    {t.text && <div className="bubble-text"><Markdown text={t.text} /></div>}
+                    {t.chart && (
+                      <GenieChart type={t.chart.type} xKey={t.chart.x}
+                        series={t.chart.series} data={t.chart.data} />
+                    )}
                     {t.columns && t.columns.length > 0 && (
-                      <div className="res-tbl-wrap">
-                        <table className="res-tbl">
-                          <thead><tr>{t.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-                          <tbody>
-                            {(t.rows || []).slice(0, 50).map((row, ri) => (
-                              <tr key={ri}>{row.map((cell, ci) => <td key={ci}>{String(cell ?? "")}</td>)}</tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      <details className="res-tbl-box" open={!t.chart}>
+                        <summary>{t.chart ? "Show data table" : `${(t.rows || []).length} rows`}</summary>
+                        <div className="res-tbl-wrap">
+                          <table className="res-tbl">
+                            <thead><tr>{t.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                            <tbody>
+                              {(t.rows || []).slice(0, 100).map((row, ri) => (
+                                <tr key={ri}>{row.map((cell, ci) => <td key={ci}>{String(cell ?? "")}</td>)}</tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
                     )}
                   </>
                 )}

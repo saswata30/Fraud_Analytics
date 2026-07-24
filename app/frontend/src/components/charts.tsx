@@ -1,7 +1,96 @@
 // Pure-SVG chart primitives — no chart library, matches the reference app look.
 
-const PALETTE = ["#1b3b6f", "#2f6df6", "#3fa7d6", "#5bc8af", "#f0a202", "#e8833a", "#9aa7bd"];
+const PALETTE = ["#2f6df6", "#e2483b", "#3fa7d6", "#5bc8af", "#f0a202", "#e8833a", "#9aa7bd"];
 export const seriesColor = (i: number) => PALETTE[i % PALETTE.length];
+
+// ---- Genie-style multi-series chart (line or grouped bar) ----
+export function GenieChart({
+  type,
+  xKey,
+  series,
+  data,
+}: {
+  type: "line" | "bar";
+  xKey: string;
+  series: string[];
+  data: Record<string, any>[];
+}) {
+  if (!data || data.length < 1 || series.length === 0)
+    return <div className="chart-empty">No chart data</div>;
+  const W = 720;
+  const H = 240;
+  const pad = { l: 48, r: 14, t: 16, b: 46 };
+  const iw = W - pad.l - pad.r;
+  const ih = H - pad.t - pad.b;
+  const vals = data.flatMap((d) => series.map((s) => Number(d[s]))).filter((v) => !isNaN(v));
+  const maxY = Math.max(...vals, 0) * 1.1 || 1;
+  const minY = Math.min(...vals, 0);
+  const py = (v: number) => pad.t + (1 - (v - minY) / (maxY - minY || 1)) * ih;
+  const ticks = 4;
+  const gridY = Array.from({ length: ticks + 1 }, (_, i) => minY + ((maxY - minY) * i) / ticks);
+  const n = data.length;
+  const step = Math.max(1, Math.ceil(n / 8)); // x-label thinning
+
+  return (
+    <div className="genie-chart">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: "100%" }}>
+        {gridY.map((g, i) => (
+          <g key={i}>
+            <line x1={pad.l} x2={W - pad.r} y1={py(g)} y2={py(g)} className="c-grid" />
+            <text x={pad.l - 6} y={py(g) + 3} className="c-axis" textAnchor="end">
+              {Math.round(g).toLocaleString()}
+            </text>
+          </g>
+        ))}
+        {type === "line"
+          ? series.map((s, si) => {
+              const cx = (i: number) => pad.l + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+              const path = data
+                .map((d, i) => `${i === 0 ? "M" : "L"} ${cx(i).toFixed(1)} ${py(Number(d[s]) || 0).toFixed(1)}`)
+                .join(" ");
+              return (
+                <g key={s}>
+                  <path d={path} fill="none" stroke={seriesColor(si)} strokeWidth={2.2} />
+                  {data.map((d, i) => (
+                    <circle key={i} cx={cx(i)} cy={py(Number(d[s]) || 0)} r={2.4} fill={seriesColor(si)} />
+                  ))}
+                </g>
+              );
+            })
+          : data.map((d, i) => {
+              const groupW = iw / n;
+              const bw = (groupW * 0.7) / series.length;
+              const gx = pad.l + i * groupW + groupW * 0.15;
+              return (
+                <g key={i}>
+                  {series.map((s, si) => {
+                    const v = Number(d[s]) || 0;
+                    const y = py(v);
+                    return (
+                      <rect key={s} x={gx + si * bw} y={y} width={bw * 0.9}
+                        height={py(minY) - y} fill={seriesColor(si)} rx={1.5} />
+                    );
+                  })}
+                </g>
+              );
+            })}
+        {data.map((d, i) =>
+          i % step === 0 ? (
+            <text key={i} x={pad.l + (n === 1 ? iw / 2 : (i / Math.max(n - 1, 1)) * iw)}
+              y={H - 26} className="c-axis" textAnchor="middle">
+              {String(d[xKey] ?? d.x ?? "")}
+            </text>
+          ) : null
+        )}
+      </svg>
+      <div className="chart-legend">
+        {series.map((s, si) => (
+          <span key={s}><i style={{ background: seriesColor(si) }} /> {s}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ---- Line chart: fraud rate over time (single series, area fill) ----
 export function LineChart({

@@ -78,12 +78,19 @@ export interface Claim {
   is_fraud: number;
 }
 
+export interface ChartSpec {
+  type: "line" | "bar";
+  x: string;
+  series: string[];
+  data: Record<string, any>[];
+}
 export interface ChatResponse {
   conversation_id: string;
   message_id: string;
   answer: string;
   columns: string[];
   rows: any[][];
+  chart: ChartSpec | null;
   error: string | null;
 }
 

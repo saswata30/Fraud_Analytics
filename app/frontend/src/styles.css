@@ -143,10 +143,25 @@ input { font-family: inherit; font-size: 13px; color: var(--ink); outline: none;
 .bubble.user { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
 .bubble.genie { background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); border-bottom-left-radius: 4px; }
 .bubble-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--accent); margin-bottom: 7px; }
-.bubble-text { font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; }
-.bubble.user .bubble-text { color: #fff; }
+.bubble-text { font-size: 13.5px; line-height: 1.6; }
+.bubble.user .bubble-text { color: #fff; white-space: pre-wrap; }
 .bubble-err { color: var(--high); font-size: 12.5px; }
-.res-tbl-wrap { margin-top: 10px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.md-p { margin: 0 0 9px; }
+.md-p:last-child { margin-bottom: 0; }
+.md-list { margin: 4px 0 9px; padding-left: 18px; }
+.md-list li { margin: 2px 0; line-height: 1.55; }
+.md-list li::marker { color: var(--accent); }
+
+/* Genie-style chart */
+.genie-chart { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 6px; background: #fafbfd; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; padding: 6px 0 2px; font-size: 11.5px; color: var(--ink-soft); }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend i { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+.res-tbl-box { margin-top: 10px; }
+.res-tbl-box > summary { font-size: 11.5px; font-weight: 700; color: var(--accent); cursor: pointer; padding: 4px 0; list-style: revert; }
+.res-tbl-box[open] > summary { margin-bottom: 6px; }
+.res-tbl-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
 .res-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .res-tbl th { text-align: left; padding: 7px 10px; background: #fafbfd; border-bottom: 1px solid var(--line); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted-2); font-weight: 700; white-space: nowrap; }
 .res-tbl td { padding: 6px 10px; border-bottom: 1px solid var(--line-soft); color: var(--ink); white-space: nowrap; }
