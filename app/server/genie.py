@@ -4,13 +4,15 @@ from __future__ import annotations
 import io
 import re
 
-from server.config import (
-    GENIE_SPACE_ID,
-    USERDATA_PATH,
-    WAREHOUSE_ID,
-    get_workspace_client,
-)
+import server.config as config
+from server.config import GENIE_SPACE_ID, get_workspace_client
 from server.db import sql
+
+
+def _userdata_path() -> str:
+    """Resolved raw/input/userdata volume path (catalog resolved on first use)."""
+    config.resolve_catalog(sql)
+    return config.USERDATA_PATH
 
 
 def _slug(name: str) -> str:
@@ -24,10 +26,11 @@ def upload_document(filename: str, data: bytes) -> dict:
     """Land an uploaded file in the raw/input/userdata volume, extract its text."""
     w = get_workspace_client()
     safe = _slug(filename)
-    dest = f"{USERDATA_PATH}/{safe}"
+    udir = _userdata_path()
+    dest = f"{udir}/{safe}"
 
     # Ensure the userdata folder exists, then upload the raw bytes.
-    w.files.create_directory(USERDATA_PATH)
+    w.files.create_directory(udir)
     w.files.upload(dest, io.BytesIO(data), overwrite=True)
 
     text = _extract_text(safe, data)

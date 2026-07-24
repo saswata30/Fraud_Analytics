@@ -16,6 +16,21 @@
 # MAGIC - The Gold tables from notebook `04` exist: `gold_fraud_claims`, `gold_fraud_by_region`.
 # MAGIC - You have a running **SQL Warehouse** (Serverless recommended).
 # MAGIC - You have `CAN USE` on the warehouse and `SELECT` on the tables.
+# MAGIC
+# MAGIC > **Which catalog?** The examples below say `allianz_workshop`, but earlier notebooks resolve the
+# MAGIC > catalog dynamically (it may be `allianz_workshop`, `main`, or `hive_metastore` depending on your
+# MAGIC > workspace). Run the cell below to print YOUR fully-qualified table names, and use those when you
+# MAGIC > add tables to the Genie Space.
+
+# COMMAND ----------
+
+# MAGIC %run ./_config
+
+# COMMAND ----------
+
+print("Add these two tables to your Genie Space:")
+print(f"  {FQ}.gold_fraud_claims")
+print(f"  {FQ}.gold_fraud_by_region")
 
 # COMMAND ----------
 

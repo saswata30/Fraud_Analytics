@@ -1,8 +1,16 @@
 """Read-side business logic: serves fraud analytics from the Gold Delta tables."""
 from __future__ import annotations
 
-from server.config import FQ, LLM, workspace_host
+import server.config as config
+from server.config import LLM, workspace_host
 from server.db import sql, sql_scalar
+
+
+def _fq() -> str:
+    """Fully-qualified schema, resolving the catalog on first use (handles workspaces
+    where the notebooks landed the data in main/hive_metastore instead of allianz_workshop)."""
+    config.resolve_catalog(sql)
+    return config.FQ
 
 
 # ------------------------------ Dashboard: KPIs + trends ------------------------------
@@ -18,7 +26,7 @@ def dashboard() -> dict:
           SUM(claim_amount)                     AS total_payout,
           SUM(CASE WHEN fraud_risk_score >= 3 THEN 1 ELSE 0 END) AS high_risk_claims,
           AVG(claim_amount)                     AS avg_claim
-        FROM {FQ}.gold_fraud_claims
+        FROM {_fq()}.gold_fraud_claims
         """
     )
     kpi = kpi[0] if kpi else {}
@@ -31,7 +39,7 @@ def dashboard() -> dict:
                SUM(is_fraud)            AS fraud_claims,
                SUM(is_fraud)/COUNT(*)   AS fraud_rate,
                SUM(CASE WHEN is_fraud=1 THEN claim_amount ELSE 0 END) AS fraud_payout
-        FROM {FQ}.gold_fraud_claims
+        FROM {_fq()}.gold_fraud_claims
         WHERE claim_month IS NOT NULL
         GROUP BY claim_month
         ORDER BY claim_month
@@ -46,7 +54,7 @@ def dashboard() -> dict:
                SUM(is_fraud)          AS fraud_claims,
                SUM(is_fraud)/COUNT(*) AS fraud_rate,
                SUM(CASE WHEN is_fraud=1 THEN claim_amount ELSE 0 END) AS fraud_payout
-        FROM {FQ}.gold_fraud_claims
+        FROM {_fq()}.gold_fraud_claims
         GROUP BY region
         ORDER BY fraud_rate DESC
         """
@@ -59,7 +67,7 @@ def dashboard() -> dict:
                COUNT(*)               AS claims,
                SUM(is_fraud)          AS fraud_claims,
                SUM(is_fraud)/COUNT(*) AS fraud_rate
-        FROM {FQ}.gold_fraud_claims
+        FROM {_fq()}.gold_fraud_claims
         GROUP BY policy_type
         ORDER BY fraud_rate DESC
         """
@@ -72,7 +80,7 @@ def dashboard() -> dict:
                COUNT(*)                            AS total,
                SUM(is_fraud)                       AS fraud,
                COUNT(*) - SUM(is_fraud)            AS legit
-        FROM {FQ}.gold_fraud_claims
+        FROM {_fq()}.gold_fraud_claims
         GROUP BY fraud_risk_score
         ORDER BY fraud_risk_score
         """
@@ -104,7 +112,7 @@ def high_risk_claims(limit: int = 25) -> list[dict]:
         SELECT claim_id, policyholder_id, policy_type, claim_type, region, channel,
                claim_date, claim_amount, report_lag_days, fraud_risk_score,
                claim_status, is_fraud
-        FROM {FQ}.gold_fraud_claims
+        FROM {_fq()}.gold_fraud_claims
         ORDER BY fraud_risk_score DESC, claim_amount DESC
         LIMIT {int(limit)}
         """
@@ -119,14 +127,14 @@ def high_risk_claims(limit: int = 25) -> list[dict]:
 
 # ------------------------------ Unity Catalog deep link ------------------------------
 def uc_link(obj: str = "") -> dict:
-    cat, sch = FQ.split(".")
+    cat, sch = _fq().split(".")
     host = workspace_host()
     url = f"{host}/explore/data/{cat}/{sch}/{obj}" if obj else f"{host}/explore/data/{cat}/{sch}"
     return {"url": url}
 
 
 def meta() -> dict:
-    cat, sch = FQ.split(".")
+    cat, sch = _fq().split(".")
     return {
         "catalog": cat,
         "schema": sch,
