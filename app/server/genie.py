@@ -95,26 +95,55 @@ def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
     for att in (msg.attachments or []):
         if att.text and att.text.content:
             text_parts.append(att.text.content)
-        if att.query and att.query.query:
-            generated_sql = att.query.query
-            # Fetch the result rows for the attachment.
-            try:
-                res = w.genie.get_message_query_result(
-                    space_id=msg.space_id,
-                    conversation_id=msg.conversation_id,
-                    message_id=msg.message_id,
-                )
-                sr = res.statement_response
+        if att.query:
+            # Genie's natural-language description of the result (the "overview /
+            # key observations" narrative shown in the Genie UI) — keep it.
+            if att.query.description:
+                text_parts.append(att.query.description)
+            if att.query.query:
+                generated_sql = att.query.query
+                # Fetch the result rows. Genie often splits the response into several
+                # attachments (query in one, text in another); the query rows must be
+                # fetched BY ATTACHMENT ID — the message-level call returns 0 rows in
+                # that case. Fall back to the message-level call if needed.
+                sr = None
+                try:
+                    res = w.genie.get_message_query_result_by_attachment(
+                        space_id=msg.space_id,
+                        conversation_id=msg.conversation_id,
+                        message_id=msg.message_id,
+                        attachment_id=att.attachment_id,
+                    )
+                    sr = res.statement_response
+                except Exception:
+                    sr = None
+                if not (sr and sr.result and sr.result.data_array):
+                    try:
+                        res = w.genie.get_message_query_result(
+                            space_id=msg.space_id,
+                            conversation_id=msg.conversation_id,
+                            message_id=msg.message_id,
+                        )
+                        sr = res.statement_response
+                    except Exception:
+                        sr = None
                 if sr and sr.manifest and sr.manifest.schema and sr.result:
                     columns = [c.name for c in sr.manifest.schema.columns]
                     rows = sr.result.data_array or []
-            except Exception:
-                pass
 
-    answer = "\n\n".join(text_parts).strip()
+    # De-duplicate identical attachment texts while preserving order.
+    seen = set()
+    unique_parts = []
+    for p in text_parts:
+        p = p.strip()
+        if p and p not in seen:
+            seen.add(p)
+            unique_parts.append(p)
+    answer = "\n\n".join(unique_parts).strip()
 
-    # Elaborate Genie's (often terse) answer into a verbose, detailed explanation
-    # grounded in the returned data. The SQL is intentionally NOT surfaced to the user.
+    # Expand Genie's own answer into a fuller, demo-grade explanation grounded in the
+    # data. This PRESERVES everything Genie said (overview + observations) and adds
+    # analysis — it never shortens. SQL is intentionally NOT surfaced to the user.
     verbose = _elaborate(question, answer, columns, rows, doc_context)
 
     return {
@@ -128,19 +157,25 @@ def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
 
 
 def _elaborate(question: str, answer: str, columns: list, rows: list, doc_context: str) -> str:
-    """Use the workspace LLM to turn a short answer + result rows into a detailed,
-    demo-grade explanation. Falls back to the raw answer if the LLM is unavailable."""
-    if not question:
+    """Expand Genie's own answer + full result set into a complete, detailed explanation.
+
+    Key rule: PRESERVE everything Genie said (its overview and key observations) and add
+    to it — never summarise or drop content. Falls back to Genie's raw answer on any error
+    or if the model returns something shorter than Genie already gave us.
+    """
+    if not question or not answer and not rows:
         return answer
-    # Compact the result set for the prompt (cap rows/cols to stay well within context).
+
+    # Feed the full result set (capped generously) so the model can describe the whole trend,
+    # not just the first few rows.
     preview = ""
     if columns and rows:
-        head = rows[:40]
+        head = rows[:200]
         preview = " | ".join(columns) + "\n" + "\n".join(
-            " | ".join(str(c) for c in r) for r in head
+            " | ".join("" if c is None else str(c) for c in r) for r in head
         )
-        if len(rows) > 40:
-            preview += f"\n… ({len(rows) - 40} more rows)"
+        if len(rows) > 200:
+            preview += f"\n… ({len(rows) - 200} more rows)"
 
     doc_note = ""
     if doc_context:
@@ -151,27 +186,37 @@ def _elaborate(question: str, answer: str, columns: list, rows: list, doc_contex
         )
 
     system = (
-        "You are a Fraud Chatbot analyst for an insurance company, speaking to fraud analysts and "
-        "claims managers in a customer demo. Rewrite the provided result into a thorough, well-structured, "
-        "business-friendly explanation in clear British English. Requirements:\n"
-        "- Open with a direct 1-sentence answer to the question, stating the key number(s).\n"
-        "- Then add 2-4 short paragraphs (or a tidy bulleted breakdown) that interpret the numbers: "
-        "call out the largest/smallest values, notable patterns, comparisons and what they imply for fraud risk.\n"
-        "- Money is GBP: format with a £ and thousands separators (e.g. £34,100; use £K/£M for large sums). "
+        "You are the Fraud Chatbot for an insurance company, speaking to fraud analysts and claims "
+        "managers in a customer demo. You are given the analytics engine's own answer and its full "
+        "result set. Produce a COMPLETE, detailed, well-structured response in clear British English.\n\n"
+        "CRITICAL RULES:\n"
+        "- PRESERVE everything in the analytics engine's answer. Reproduce its overview and every key "
+        "observation IN FULL — never summarise, shorten, truncate, or omit any point it made. If it "
+        "gave an 'Overview' and 'Key observations', keep those sections and their content.\n"
+        "- You may EXPAND: add more detail, describe the full trend across all periods/rows, note "
+        "peaks, troughs, ranges and comparisons, and finish with a brief '**What this suggests**' "
+        "takeaway for fraud investigation. Add, never remove.\n"
+        "- Structure with a short '**Overview**' paragraph and a '**Key observations**' bulleted list "
+        "(one bullet per notable point), matching the engine's structure where present.\n"
+        "- Describe the WHOLE result set, not just the first rows. For a monthly trend, walk through the "
+        "movement over time and call out the highest and lowest months.\n"
+        "- Money is GBP: format with £ and thousands separators (e.g. £34,100; £K/£M for large sums). "
         "Rates as percentages to one decimal place.\n"
-        "- Add one brief 'What this suggests' takeaway with a practical fraud-investigation implication.\n"
-        "- Be accurate: use ONLY the numbers provided; never invent figures or columns. "
-        "Do NOT mention SQL, queries, tables, or column names as technical artefacts — speak in business terms.\n"
-        "- Do not use headings larger than bold labels; keep it readable in a chat bubble."
+        "- Use ONLY the numbers provided; never invent figures or columns. Do NOT mention SQL, queries, "
+        "tables or column names as technical artefacts — speak in business terms."
     )
     user = (
         f"User question:\n{question}\n\n"
-        f"Concise result from the analytics engine:\n{answer or '(no text answer; use the data below)'}\n\n"
-        f"Supporting data:\n{preview or '(no tabular data returned)'}"
+        f"Analytics engine's answer (preserve and expand — do not shorten):\n"
+        f"{answer or '(no text answer; describe the data below in full)'}\n\n"
+        f"Full result set:\n{preview or '(no tabular data returned)'}"
         f"{doc_note}"
     )
     try:
-        out = llm(system, user, temperature=0.3, max_tokens=900)
-        return out.strip() or answer
+        out = llm(system, user, temperature=0.3, max_tokens=2500).strip()
+        # Guard: never return something shorter than Genie's own answer.
+        if out and len(out) >= len(answer):
+            return out
+        return answer
     except Exception:
         return answer
