@@ -5,7 +5,6 @@ import { api, ChatResponse } from "../lib/api";
 interface Turn {
   role: "user" | "genie";
   text: string;
-  sql?: string | null;
   columns?: string[];
   rows?: any[][];
   error?: string | null;
@@ -39,7 +38,7 @@ export default function Assistant() {
       });
       if (r.conversation_id) setConvId(r.conversation_id);
       setTurns((t) => [...t, {
-        role: "genie", text: r.answer, sql: r.sql, columns: r.columns, rows: r.rows, error: r.error,
+        role: "genie", text: r.answer, columns: r.columns, rows: r.rows, error: r.error,
       }]);
     } catch (e) {
       setTurns((t) => [...t, { role: "genie", text: "", error: String(e) }]);
@@ -67,9 +66,10 @@ export default function Assistant() {
           {turns.length === 0 && (
             <div className="asst-hero">
               <div className="asst-hero-ico"><Sparkles size={26} /></div>
-              <h2>Ask Genie about fraud</h2>
+              <h2>Fraud Chatbot</h2>
               <p>Ask questions in plain English about claims, fraud patterns, regions and payouts —
-                or upload a claim document and ask questions grounded in it.</p>
+                or upload a claim document and ask questions grounded in it. Answers come back with
+                detailed, plain-English explanations.</p>
               <div className="asst-sugg">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} className="sugg-chip" onClick={() => send(s)}>{s}</button>
@@ -80,18 +80,12 @@ export default function Assistant() {
           {turns.map((t, i) => (
             <div key={i} className={`bubble-row ${t.role}`}>
               <div className={`bubble ${t.role}`}>
-                {t.role === "genie" && <div className="bubble-tag"><Sparkles size={12} /> Genie</div>}
+                {t.role === "genie" && <div className="bubble-tag"><Sparkles size={12} /> Fraud Chatbot</div>}
                 {t.error ? (
                   <div className="bubble-err">{t.error}</div>
                 ) : (
                   <>
                     {t.text && <div className="bubble-text">{t.text}</div>}
-                    {t.sql && (
-                      <details className="sql-box">
-                        <summary>Generated SQL</summary>
-                        <pre>{t.sql}</pre>
-                      </details>
-                    )}
                     {t.columns && t.columns.length > 0 && (
                       <div className="res-tbl-wrap">
                         <table className="res-tbl">

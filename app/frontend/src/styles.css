@@ -146,9 +146,6 @@ input { font-family: inherit; font-size: 13px; color: var(--ink); outline: none;
 .bubble-text { font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; }
 .bubble.user .bubble-text { color: #fff; }
 .bubble-err { color: var(--high); font-size: 12.5px; }
-.sql-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.sql-box summary { padding: 7px 11px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft); background: #fafbfd; cursor: pointer; }
-.sql-box pre { padding: 11px; font-size: 11.5px; font-family: ui-monospace, monospace; color: var(--ink); background: var(--bg); overflow-x: auto; white-space: pre-wrap; }
 .res-tbl-wrap { margin-top: 10px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
 .res-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .res-tbl th { text-align: left; padding: 7px 10px; background: #fafbfd; border-bottom: 1px solid var(--line); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted-2); font-weight: 700; white-space: nowrap; }

@@ -10,7 +10,7 @@ from server.config import (
     WAREHOUSE_ID,
     get_workspace_client,
 )
-from server.db import sql
+from server.db import llm, sql
 
 
 def _slug(name: str) -> str:
@@ -83,10 +83,10 @@ def ask(question: str, conversation_id: str | None = None, doc_context: str = ""
             space_id=GENIE_SPACE_ID, content=content
         )
 
-    return _format_message(w, msg)
+    return _format_message(w, msg, question, doc_context)
 
 
-def _format_message(w, msg) -> dict:
+def _format_message(w, msg, question: str = "", doc_context: str = "") -> dict:
     text_parts: list[str] = []
     generated_sql = None
     columns: list[str] = []
@@ -112,15 +112,66 @@ def _format_message(w, msg) -> dict:
                 pass
 
     answer = "\n\n".join(text_parts).strip()
-    if not answer and generated_sql:
-        answer = "Here are the results."
+
+    # Elaborate Genie's (often terse) answer into a verbose, detailed explanation
+    # grounded in the returned data. The SQL is intentionally NOT surfaced to the user.
+    verbose = _elaborate(question, answer, columns, rows, doc_context)
 
     return {
         "conversation_id": msg.conversation_id,
         "message_id": msg.message_id,
-        "answer": answer or "I couldn't produce an answer for that.",
-        "sql": generated_sql,
+        "answer": verbose or answer or "I couldn't produce an answer for that.",
         "columns": columns,
         "rows": rows[:200],
         "error": msg.error.error if msg.error else None,
     }
+
+
+def _elaborate(question: str, answer: str, columns: list, rows: list, doc_context: str) -> str:
+    """Use the workspace LLM to turn a short answer + result rows into a detailed,
+    demo-grade explanation. Falls back to the raw answer if the LLM is unavailable."""
+    if not question:
+        return answer
+    # Compact the result set for the prompt (cap rows/cols to stay well within context).
+    preview = ""
+    if columns and rows:
+        head = rows[:40]
+        preview = " | ".join(columns) + "\n" + "\n".join(
+            " | ".join(str(c) for c in r) for r in head
+        )
+        if len(rows) > 40:
+            preview += f"\n… ({len(rows) - 40} more rows)"
+
+    doc_note = ""
+    if doc_context:
+        doc_note = (
+            "\n\nThe user also uploaded a document; relevant excerpt:\n\"\"\"\n"
+            + doc_context[:3000] + "\n\"\"\"\n"
+            "Where the question relates to the document, connect its content to the data."
+        )
+
+    system = (
+        "You are a Fraud Chatbot analyst for an insurance company, speaking to fraud analysts and "
+        "claims managers in a customer demo. Rewrite the provided result into a thorough, well-structured, "
+        "business-friendly explanation in clear British English. Requirements:\n"
+        "- Open with a direct 1-sentence answer to the question, stating the key number(s).\n"
+        "- Then add 2-4 short paragraphs (or a tidy bulleted breakdown) that interpret the numbers: "
+        "call out the largest/smallest values, notable patterns, comparisons and what they imply for fraud risk.\n"
+        "- Money is GBP: format with a £ and thousands separators (e.g. £34,100; use £K/£M for large sums). "
+        "Rates as percentages to one decimal place.\n"
+        "- Add one brief 'What this suggests' takeaway with a practical fraud-investigation implication.\n"
+        "- Be accurate: use ONLY the numbers provided; never invent figures or columns. "
+        "Do NOT mention SQL, queries, tables, or column names as technical artefacts — speak in business terms.\n"
+        "- Do not use headings larger than bold labels; keep it readable in a chat bubble."
+    )
+    user = (
+        f"User question:\n{question}\n\n"
+        f"Concise result from the analytics engine:\n{answer or '(no text answer; use the data below)'}\n\n"
+        f"Supporting data:\n{preview or '(no tabular data returned)'}"
+        f"{doc_note}"
+    )
+    try:
+        out = llm(system, user, temperature=0.3, max_tokens=900)
+        return out.strip() or answer
+    except Exception:
+        return answer

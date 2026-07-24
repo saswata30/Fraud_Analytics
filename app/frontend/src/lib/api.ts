@@ -82,7 +82,6 @@ export interface ChatResponse {
   conversation_id: string;
   message_id: string;
   answer: string;
-  sql: string | null;
   columns: string[];
   rows: any[][];
   error: string | null;

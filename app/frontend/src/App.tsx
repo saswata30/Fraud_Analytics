@@ -8,7 +8,7 @@ type View = "dashboard" | "assistant";
 
 const RAIL: { key: View; label: string; icon: typeof LayoutGrid }[] = [
   { key: "dashboard", label: "Overview", icon: LayoutGrid },
-  { key: "assistant", label: "Ask Genie", icon: MessageSquare },
+  { key: "assistant", label: "Fraud Chatbot", icon: MessageSquare },
 ];
 
 export default function App() {
