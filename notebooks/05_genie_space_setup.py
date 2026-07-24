@@ -17,8 +17,9 @@
 # MAGIC - You have a running **SQL Warehouse** (Serverless recommended).
 # MAGIC - You have `CAN USE` on the warehouse and `SELECT` on the tables.
 # MAGIC
-# MAGIC > **Catalog:** notebooks `01`–`03` create the tables in **`allianz_lab.fraud_analytics`**.
-# MAGIC > If you used a different catalog in `01_setup`, substitute it below.
+# MAGIC > **Catalog:** notebooks `01`–`03` create the tables as **`<default_catalog>.fraud_analytics`**
+# MAGIC > (this lab uses the warehouse's default catalog — run `SELECT current_catalog()` to see it).
+# MAGIC > Substitute that catalog name for `<catalog>` below when adding the tables.
 
 # COMMAND ----------
 
@@ -30,8 +31,8 @@
 # MAGIC 4. **Description:** `Ask questions about insurance claims and fraud patterns for the Allianz workshop.`
 # MAGIC 5. **Default warehouse:** select your Serverless SQL Warehouse.
 # MAGIC 6. **Tables:** add
-# MAGIC    - `allianz_lab.fraud_analytics.gold_fraud_claims`
-# MAGIC    - `allianz_lab.fraud_analytics.gold_fraud_by_region`
+# MAGIC    - `<catalog>.fraud_analytics.gold_fraud_claims`
+# MAGIC    - `<catalog>.fraud_analytics.gold_fraud_by_region`
 # MAGIC 7. Click **Save**.
 
 # COMMAND ----------
@@ -95,20 +96,20 @@
 # MAGIC **"What is the overall fraud rate?"**
 # MAGIC ```sql
 # MAGIC SELECT SUM(is_fraud) / COUNT(*) AS fraud_rate
-# MAGIC FROM allianz_workshop.fraud_analytics.gold_fraud_claims;
+# MAGIC FROM <catalog>.fraud_analytics.gold_fraud_claims;
 # MAGIC ```
 # MAGIC
 # MAGIC **"Which regions have the highest fraud rate?"**
 # MAGIC ```sql
 # MAGIC SELECT region, SUM(is_fraud)/COUNT(*) AS fraud_rate, COUNT(*) AS claims
-# MAGIC FROM allianz_workshop.fraud_analytics.gold_fraud_claims
+# MAGIC FROM <catalog>.fraud_analytics.gold_fraud_claims
 # MAGIC GROUP BY region ORDER BY fraud_rate DESC;
 # MAGIC ```
 # MAGIC
 # MAGIC **"Show total fraudulent payout by policy type"**
 # MAGIC ```sql
 # MAGIC SELECT policy_type, SUM(claim_amount) AS fraud_payout
-# MAGIC FROM allianz_workshop.fraud_analytics.gold_fraud_claims
+# MAGIC FROM <catalog>.fraud_analytics.gold_fraud_claims
 # MAGIC WHERE is_fraud = 1
 # MAGIC GROUP BY policy_type ORDER BY fraud_payout DESC;
 # MAGIC ```
@@ -175,13 +176,13 @@
 
 # MAGIC %sql
 # MAGIC SELECT SUM(is_fraud)/COUNT(*) AS overall_fraud_rate
-# MAGIC FROM allianz_workshop.fraud_analytics.gold_fraud_claims;
+# MAGIC FROM <catalog>.fraud_analytics.gold_fraud_claims;
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC SELECT region, SUM(is_fraud) AS fraud_claims, SUM(is_fraud)/COUNT(*) AS fraud_rate
-# MAGIC FROM allianz_workshop.fraud_analytics.gold_fraud_claims
+# MAGIC FROM <catalog>.fraud_analytics.gold_fraud_claims
 # MAGIC GROUP BY region ORDER BY fraud_rate DESC;
 
 # COMMAND ----------

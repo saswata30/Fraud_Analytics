@@ -11,11 +11,12 @@
 -- MAGIC
 -- MAGIC The Gold tables are what Genie, the app, and Visual Data Prep consume.
 -- MAGIC
--- MAGIC > Run `01_setup` and `02_generate_data` first.
+-- MAGIC > Run `01_setup` and `02_generate_data` first. Uses the warehouse's **default catalog**
+-- MAGIC > (add a `USE CATALOG ...;` line here only if you pinned a specific one in `01`).
 
 -- COMMAND ----------
 
-USE CATALOG allianz_lab;
+-- USE CATALOG <your_catalog>;   -- only if you pinned one in 01_setup
 USE SCHEMA fraud_analytics;
 
 -- COMMAND ----------

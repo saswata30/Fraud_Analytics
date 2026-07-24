@@ -6,43 +6,47 @@
 -- MAGIC **pure SQL**, so it runs on the lab's **Serverless SQL Warehouse** (no all-purpose cluster
 -- MAGIC needed). Attach to the SQL Warehouse and click **Run all**.
 -- MAGIC
--- MAGIC Creates catalog **`allianz_lab`** and schema **`fraud_analytics`**.
+-- MAGIC Creates schema **`fraud_analytics`** in the **default catalog** the SQL Warehouse is already
+-- MAGIC connected to (this lab does **not** allow creating new catalogs). Nothing is hard-coded — the
+-- MAGIC schema lands in whatever catalog is current, and notebooks `02`/`03` inherit it.
 -- MAGIC
--- MAGIC > If your lab user cannot create a catalog, change `allianz_lab` below to a catalog you can
--- MAGIC > write to (e.g. `hive_metastore`). Keep the same catalog name in notebooks `02` and `03`.
+-- MAGIC > Want a specific catalog? Uncomment the `USE CATALOG ...` line in Step 1 and set it to one you
+-- MAGIC > can write to. Otherwise leave it — the current default catalog is used.
 
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ## Step 1 · Create the catalog
+-- MAGIC ## Step 1 · (Optional) pick a catalog — otherwise use the default
+-- MAGIC The default catalog your warehouse is attached to is used automatically. To pin a specific
+-- MAGIC one, uncomment and edit the line below.
 
 -- COMMAND ----------
 
-CREATE CATALOG IF NOT EXISTS allianz_lab;
-
--- COMMAND ----------
-
--- MAGIC %md
--- MAGIC ## Step 2 · Create the schema
-
--- COMMAND ----------
-
-CREATE SCHEMA IF NOT EXISTS allianz_lab.fraud_analytics;
+-- USE CATALOG <your_catalog>;   -- optional: only if you want a specific catalog
+SELECT current_catalog() AS default_catalog;
 
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ## Step 3 · Make it the default for this session
+-- MAGIC ## Step 2 · Create the schema in the current catalog
 
 -- COMMAND ----------
 
-USE CATALOG allianz_lab;
+CREATE SCHEMA IF NOT EXISTS fraud_analytics;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## Step 3 · Make it the default schema for this session
+
+-- COMMAND ----------
+
 USE SCHEMA fraud_analytics;
 
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ## Step 4 · Confirm
+-- MAGIC ## Step 4 · Confirm where the tables will live
 
 -- COMMAND ----------
 

@@ -13,16 +13,17 @@
 -- MAGIC Fraud (~7%) is injected to correlate with **higher amounts**, **faster reporting**, **newer
 -- MAGIC customers** and **lower credit** — so it's learnable in Genie/ML later.
 -- MAGIC
--- MAGIC > Run `01_setup` first. If you changed the catalog there, change it in Step 0 below too.
+-- MAGIC > Run `01_setup` first. This uses the warehouse's **default catalog** (same as `01`). If you
+-- MAGIC > pinned a specific catalog in `01`, add the same `USE CATALOG ...;` line in Step 0 below.
 
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ## Step 0 · Use the workshop schema
+-- MAGIC ## Step 0 · Use the workshop schema (in the current default catalog)
 
 -- COMMAND ----------
 
-USE CATALOG allianz_lab;
+-- USE CATALOG <your_catalog>;   -- only if you pinned one in 01_setup
 USE SCHEMA fraud_analytics;
 
 -- COMMAND ----------
