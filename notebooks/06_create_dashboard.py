@@ -6,11 +6,12 @@
 # MAGIC Everything below is a plain-English prompt you paste into the dashboard **Assistant** (the ✨
 # MAGIC icon). The Assistant reads the Gold tables and builds each tile for you.
 # MAGIC
-# MAGIC The dashboard tells one story in three sections:
+# MAGIC The dashboard tells one story in four sections:
 # MAGIC
 # MAGIC | Section | Question it answers | Tiles |
 # MAGIC |---------|--------------------|-------|
 # MAGIC | 🎯 **Fraud Detection** | *How much fraud is there, and where?* | headline KPIs, fraud by region, fraud by policy, risk mix |
+# MAGIC | 📋 **Claims Overview** | *What does our overall claims book look like?* | claims KPIs, claims by policy/channel, status mix, top regions |
 # MAGIC | 📈 **Trend** | *Is fraud getting better or worse over time?* | fraud-rate trend, claim-volume trend, payout trend |
 # MAGIC | 💷 **Impact** | *What is it costing us, and which claims to act on?* | flagged payout, exposure, top high-risk claims |
 # MAGIC
@@ -45,8 +46,8 @@
 # MAGIC - Format all money as GBP (£) with thousands separators, and all rates as percentages with one decimal.
 # MAGIC - Give every tile a short, plain-English title a business user understands (e.g. "Fraud Rate",
 # MAGIC   "Money Flagged as Fraud"), not a table or column name.
-# MAGIC - Add three markdown section headers as I build: "Fraud Detection", "Trend Over Time", and
-# MAGIC   "Financial Impact".
+# MAGIC - Add four markdown section headers as I build: "Fraud Detection", "Claims Overview",
+# MAGIC   "Trend Over Time", and "Financial Impact".
 # MAGIC ```
 
 # COMMAND ----------
@@ -109,7 +110,51 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 📈 Section 2 · Trend Over Time
+# MAGIC ## 📋 Section 2 · Claims Overview
+# MAGIC *What does our overall claims book look like — beyond just fraud?*
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Prompt 4b · Claims KPI tiles
+# MAGIC ```
+# MAGIC Under a "Claims Overview" header, create a row of 4 KPI tiles from gold_fraud_claims, respecting
+# MAGIC all filters:
+# MAGIC 1. "Total Claims" — the count of all claims.
+# MAGIC 2. "Total Claims Payout" — the total claim amount across all claims, in GBP.
+# MAGIC 3. "Average Claim Value" — the average claim amount, in GBP.
+# MAGIC 4. "Claims Under Review" — the count of claims whose status is Pending or Under Review (amber).
+# MAGIC Use neutral blue/grey colours here (this is the whole book, not just fraud).
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Prompt 4c · Claims mix by product & channel
+# MAGIC ```
+# MAGIC Add two charts side by side:
+# MAGIC - A column chart "Claims by Policy Type" — the number of claims per policy type, sorted largest first.
+# MAGIC - A donut "Claims by Channel" — the share of claims by channel (Branch, Online, Broker, etc.).
+# MAGIC Use a neutral blue palette and label each with counts and percentages.
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Prompt 4d · Claim status & volume by region
+# MAGIC ```
+# MAGIC Add two more tiles:
+# MAGIC - A horizontal bar chart "Claims by Status" showing the count of claims in each claim status
+# MAGIC   (Approved, Rejected, Pending, Under Review), sorted largest first.
+# MAGIC - A horizontal bar chart "Claim Volume by Region" showing the number of claims per region,
+# MAGIC   sorted largest first, in neutral blue.
+# MAGIC These show operational load, independent of fraud.
+# MAGIC ```
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 📈 Section 3 · Trend Over Time
 # MAGIC *Is fraud getting better or worse — and is the business growing?*
 
 # COMMAND ----------
@@ -137,7 +182,7 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 💷 Section 3 · Financial Impact
+# MAGIC ## 💷 Section 4 · Financial Impact
 # MAGIC *What is fraud costing us, and which claims should we act on now?*
 
 # COMMAND ----------
@@ -199,6 +244,6 @@
 
 # MAGIC %md
 # MAGIC ### ✅ Dashboard complete
-# MAGIC You now have an enterprise-ready fraud dashboard — **Detection · Trend · Impact**, with a global
+# MAGIC You now have an enterprise-ready fraud dashboard — **Detection · Claims · Trend · Impact**, with a global
 # MAGIC date range — built entirely from business prompts. It's one of three surfaces over the same Gold
 # MAGIC tables: **Dashboard** (this notebook) · **Genie Space** (`05`) · **App** (`07`, optional).
