@@ -14,7 +14,7 @@ Raw files (CSV/Parquet)  →  Bronze  →  Silver  →  Gold  →  Genie Space  
 ## Notebooks (run in order)
 
 **Setup notebooks 01–03 are pure SQL** and run on a **Serverless SQL Warehouse** — no all-purpose
-cluster required (most workshop labs only provide a SQL Warehouse). Notebooks 04–06 are prompt
+cluster required (most workshop labs only provide a SQL Warehouse). Notebooks 04–07 are prompt
 playbooks. Attach each to the SQL Warehouse and **Run all**, in order.
 
 | # | Notebook | What it does |
@@ -24,7 +24,8 @@ playbooks. Attach each to the SQL Warehouse and **Run all**, in order.
 | 03 | `notebooks/03_load_to_bronze.sql` | Builds Bronze → Silver → Gold, incl. `gold_fraud_claims` / `gold_fraud_by_region`. |
 | 04 | `notebooks/04_prompt_for_visual_data_prep.py` | Prompt playbook for **Visual Data Prep** (Bronze→Silver→Gold + data-quality checks). |
 | 05 | `notebooks/05_genie_space_setup.py` | Step-by-step: create, instruct, **benchmark**, **monitor** a Genie Space over the Gold tables. |
-| 06 | `notebooks/06_prompt_for_chat_app.py` | Design brief + prompt playbook (for **Genie Code**) for the Databricks App. |
+| 06 | `notebooks/06_create_dashboard.py` | Prompt playbook to build an **AI/BI (Lakeview) dashboard** over the Gold tables. |
+| 07 | `notebooks/07_prompt_for_chat_app_optional.py` | *(optional)* Deploy the ready-made Databricks **App** from `app/` (reuse, don't rebuild). |
 
 > Everything downstream (Genie, the app, Visual Data Prep) runs on the SQL Warehouse too — no
 > cluster needed anywhere. The earlier Python/Spark versions of 01–03 are preserved in git history
@@ -39,7 +40,7 @@ The [`app/`](app/) folder is a **working React + FastAPI Databricks App** — a 
 - **Ask Genie** — natural-language chat over the fraud data via the Genie Conversation API, plus
   document upload. **Uploaded files land in `raw/input/userdata`.**
 
-Deploy it directly (see [`app/README.md`](app/README.md)) or regenerate it with Genie Code using notebook `06`.
+Deploy it directly (see [`app/README.md`](app/README.md) or notebook `07`) or regenerate it with Genie Code using notebook `07`.
 
 ## Documents (`docs/`)
 
@@ -55,7 +56,7 @@ Upload the PDFs in the **Ask Genie** panel (they land in `raw/input/userdata`), 
 1. In Databricks: **Workspace → Repos → Add Repo** and paste this repo's Git URL.
 2. Open `notebooks/01_setup.py`, attach Serverless (or a cluster), **Run all**.
 3. Run `02` and `03` the same way.
-4. Follow `04`, `05`, `06` — these are guided playbooks you run inside Visual Data Prep, Genie, and Genie Code.
+4. Follow `04`, `05`, `06`, and (optionally) `07` — guided playbooks for Visual Data Prep, Genie, the AI/BI dashboard, and deploying the app.
 
 > **Naming:** everything defaults to catalog `allianz_workshop` / schema `fraud_analytics`. If your workspace
 > can't create catalogs, notebook `01` automatically falls back to the `default` catalog — just set
