@@ -102,11 +102,23 @@ export interface UploadResponse {
   text: string;
 }
 
+export interface NewsItem {
+  category: string;
+  headline: string;
+  summary: string;
+  impact: "High" | "Medium" | "Low";
+}
+export interface NewsResponse {
+  items: NewsItem[];
+  source: "ai" | "fallback";
+}
+
 export const api = {
   meta: () => jget<Meta>("/api/meta"),
   dashboard: () => jget<Dashboard>("/api/dashboard"),
   highRisk: (limit = 25) => jget<Claim[]>(`/api/high-risk?limit=${limit}`),
   ucLink: (object = "") => jget<{ url: string }>(`/api/uc-link?object=${encodeURIComponent(object)}`),
+  news: (refresh = false) => jget<NewsResponse>(`/api/news${refresh ? "?refresh=true" : ""}`),
   chat: (body: { question: string; conversation_id?: string | null; doc_context?: string }) =>
     jpost<ChatResponse>("/api/chat", body),
   upload: async (file: File): Promise<UploadResponse> => {

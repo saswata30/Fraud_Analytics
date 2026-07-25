@@ -4,7 +4,7 @@ from fastapi import FastAPI, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from server import backend, genie
+from server import backend, genie, news as news_mod
 
 app = FastAPI(title="Allianz Fraud Analytics Workspace")
 
@@ -35,6 +35,11 @@ def high_risk(limit: int = 25):
 @app.get("/api/uc-link")
 def uc_link(object: str = ""):
     return backend.uc_link(object)
+
+
+@app.get("/api/news")
+def news(refresh: bool = False):
+    return news_mod.news(refresh=refresh)
 
 
 # ------------------------------ Genie chat + doc upload ------------------------------

@@ -25,6 +25,7 @@ Requires: databricks CLI on PATH, npm on PATH, databricks-sdk installed.
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -230,6 +231,12 @@ env:
     sh("databricks", "api", "patch", f"/api/2.0/permissions/genie/{genie_id}",
        "--profile", args.profile, "--json", json.dumps({"access_control_list": [
            {"service_principal_name": sp, "permission_level": "CAN_RUN"}]}), check=False)
+    # CAN_QUERY on the LLM serving endpoint so the news briefing (server/news.py) works —
+    # without this /api/news falls back to curated items instead of AI-generated ones.
+    llm_endpoint = os.environ.get("LLM_ENDPOINT", "databricks-claude-sonnet-4-5")
+    sh("databricks", "serving-endpoints", "set-permissions", llm_endpoint, "--profile", args.profile,
+       "--json", json.dumps({"access_control_list": [
+           {"service_principal_name": sp, "permission_level": "CAN_QUERY"}]}), check=False)
 
     print("[6/6] Done")
     app = json.loads(sh("databricks", "apps", "get", args.app_name,

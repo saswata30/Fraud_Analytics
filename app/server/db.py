@@ -6,7 +6,7 @@ from typing import Any
 
 from databricks.sdk.service.sql import StatementParameterListItem, StatementState
 
-from server.config import LLM, WAREHOUSE_ID, get_openai_client, get_workspace_client
+from server.config import LLM, WAREHOUSE_ID, get_workspace_client
 
 
 # ------------------------------ SQL ------------------------------
@@ -50,17 +50,22 @@ def sql_scalar(query: str, params: list | None = None):
 # ------------------------------ LLM ------------------------------
 def llm(system: str, user: str, *, model: str | None = None,
         temperature: float = 0.2, max_tokens: int = 1500) -> str:
-    client = get_openai_client()
-    resp = client.chat.completions.create(
-        model=model or LLM,
+    """Query a chat serving endpoint via the SDK directly (no `openai` extra needed)."""
+    from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
+
+    w = get_workspace_client()
+    resp = w.serving_endpoints.query(
+        name=model or LLM,
         messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
+            ChatMessage(role=ChatMessageRole.SYSTEM, content=system),
+            ChatMessage(role=ChatMessageRole.USER, content=user),
         ],
         temperature=temperature,
         max_tokens=max_tokens,
     )
-    return resp.choices[0].message.content or ""
+    if resp.choices and resp.choices[0].message:
+        return resp.choices[0].message.content or ""
+    return ""
 
 
 __all__ = ["sql", "sql_scalar", "llm"]
