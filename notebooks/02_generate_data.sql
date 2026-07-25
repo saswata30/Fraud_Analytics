@@ -130,5 +130,38 @@ SELECT count(*) AS claims, round(avg(is_fraud), 4) AS fraud_rate FROM raw_claims
 -- COMMAND ----------
 
 -- MAGIC %md
+-- MAGIC ## Step 3 · Land the raw data as files in the `raw` volume
+-- MAGIC As well as the Delta tables above, write the same data out as **CSV files** under
+-- MAGIC `raw/input` in the `raw` volume (created in `01`). This mirrors a real "files landing in a
+-- MAGIC volume" ingestion pattern, and keeps file-based and table-based data side by side (the app's
+-- MAGIC document uploads land alongside them, under `raw/input/userdata`).
+-- MAGIC
+-- MAGIC > `INSERT OVERWRITE DIRECTORY` writes a folder of part-files (Spark output), so each dataset
+-- MAGIC > gets its own subfolder. Re-running this notebook overwrites them cleanly. The `DIRECTORY`
+-- MAGIC > path must be a string literal, so we build it from `current_catalog()` into a SQL variable
+-- MAGIC > and run it with `EXECUTE IMMEDIATE` — this keeps the notebook catalog-agnostic.
+
+-- COMMAND ----------
+
+DECLARE OR REPLACE VARIABLE export_stmt STRING;
+
+SET VARIABLE export_stmt =
+  "INSERT OVERWRITE DIRECTORY '/Volumes/" || current_catalog() ||
+  "/fraud_analytics/raw/input/policyholders' USING CSV OPTIONS ('header'='true') SELECT * FROM raw_policyholders";
+
+EXECUTE IMMEDIATE export_stmt;
+
+-- COMMAND ----------
+
+SET VARIABLE export_stmt =
+  "INSERT OVERWRITE DIRECTORY '/Volumes/" || current_catalog() ||
+  "/fraud_analytics/raw/input/claims' USING CSV OPTIONS ('header'='true') SELECT * FROM raw_claims";
+
+EXECUTE IMMEDIATE export_stmt;
+
+-- COMMAND ----------
+
+-- MAGIC %md
 -- MAGIC ### ✅ Data generated
--- MAGIC Next: run **`03_load_to_bronze`** to build the Bronze → Silver → Gold tables.
+-- MAGIC Two raw Delta tables (`raw_policyholders`, `raw_claims`) **and** their CSV copies under
+-- MAGIC `raw/input/` in the volume. Next: run **`03_load_to_bronze`** to build the Bronze → Silver → Gold tables.

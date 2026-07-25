@@ -46,7 +46,19 @@ USE SCHEMA fraud_analytics;
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ## Step 4 · Confirm where the tables will live
+-- MAGIC ## Step 4 · Create the `raw` volume
+-- MAGIC A **managed volume** named `raw` holds file-based data: `02` can land CSV/Parquet under
+-- MAGIC `raw/input`, and the **app's document upload** writes to `raw/input/userdata`. The app fails to
+-- MAGIC accept uploads if this volume doesn't exist, so create it here.
+
+-- COMMAND ----------
+
+CREATE VOLUME IF NOT EXISTS raw;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## Step 5 · Confirm where the tables will live
 
 -- COMMAND ----------
 

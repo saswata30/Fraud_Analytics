@@ -219,6 +219,10 @@ env:
        "--json", json.dumps({"changes": [{"principal": sp, "add": ["USE_CATALOG"]}]}))
     sh("databricks", "grants", "update", "schema", f"{catalog}.{args.schema}", "--profile", args.profile,
        "--json", json.dumps({"changes": [{"principal": sp, "add": ["USE_SCHEMA", "SELECT"]}]}))
+    # READ/WRITE on the `raw` volume so document upload (raw/input/userdata) works — without
+    # this the app returns 500 on /api/upload even though dashboard queries succeed.
+    sh("databricks", "grants", "update", "volume", f"{catalog}.{args.schema}.raw", "--profile", args.profile,
+       "--json", json.dumps({"changes": [{"principal": sp, "add": ["READ_VOLUME", "WRITE_VOLUME"]}]}), check=False)
     sh("databricks", "warehouses", "set-permissions", args.warehouse_id, "--profile", args.profile,
        "--json", json.dumps({"access_control_list": [
            {"service_principal_name": sp, "permission_level": "CAN_USE"}]}))
