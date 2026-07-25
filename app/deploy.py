@@ -89,9 +89,6 @@ def create_genie_space(profile, warehouse_id, catalog, schema):
         "for human review, not an automated approve/deny decision. Do not invent columns or values."
     )
 
-    def ids(n):
-        return [f"{'%032x' % (i)}" for i in range(1, n + 1)]
-
     inner = {
         "version": 2,
         "data_sources": {"tables": [
@@ -99,7 +96,7 @@ def create_genie_space(profile, warehouse_id, catalog, schema):
             {"identifier": f"{fq}.gold_fraud_claims"},
         ]},
         "instructions": {
-            "text_instructions": [{"id": ids(1)[0], "content": [instructions]}],
+            "text_instructions": [{"id": "000000000000000000000000000000ff", "content": [instructions]}],
             "example_question_sqls": sorted([
                 {"id": "00000000000000000000000000000001",
                  "question": ["Overall fraud rate"],
